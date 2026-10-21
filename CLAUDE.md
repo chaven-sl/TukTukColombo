@@ -1,6 +1,6 @@
 # TukTuk Colombo — working instructions
 
-Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.01 — first playable driving slice** (complete, awaiting human playtest). Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
+Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.01a — handling calibration** (complete, awaiting human playtest). Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
 
 ## Repository identity
 
@@ -25,12 +25,13 @@ Godot CLI on this machine: `/Applications/Godot.app/Contents/MacOS/Godot` (also 
 ```bash
 # Play (or open the project in the editor and press F5)
 /Applications/Godot.app/Contents/MacOS/Godot --path .
-# All automated checks (~30 s): import, unit, handling, scoring, 2× traffic soak
+# All automated checks (~40 s): import, unit, handling, dynamics, scoring, input, 2× traffic soak
 tools/run_tests.sh
 # Individual stages
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --import
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --script res://tests/run_tests.gd
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/vehicle_handling_test.tscn
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/vehicle_dynamics_test.tscn   # swerve/rollover/recovery
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction]
 # Real window: FPS + screenshots to user://test_results/screens
@@ -69,6 +70,10 @@ Run `--import` after adding any new `class_name` script (refreshes the global cl
 
 Mid-range Android target; stable 30 FPS floor on supported low-end devices. Avoid in `_process`/`_physics_process`: allocations, `get_nodes_in_group`, tree searches, string building (debug excepted, throttled). Prefer cached references, pooling, squared distances, fixed-size packed arrays, data Resources. One RigidBody (the player); traffic is kinematic and pooled (24). Traffic casts no shadows; one DirectionalLight; no SSR/volumetrics/post. See `docs/performance_budget.md`.
 
+## Unit standard
+
+All speeds presented to people — docs, reports, test output, debug HUD, tuning tables, acceptance criteria, config descriptions — are **km/h**. Physics internals may use m/s; convert (×3.6) for anything human-readable, and document the km/h equivalent of any threshold stored in another unit. Prefer `_kmh` config fields.
+
 ## Coding conventions
 
 - GDScript with static types everywhere; `:=` only when the type is inferable (never on Variant/Dictionary reads). Use `minf/maxf/clampf/absf`, not the Variant versions.
@@ -91,14 +96,15 @@ Mid-range Android target; stable 30 FPS floor on supported low-end devices. Avoi
 
 ## Current phase & next step
 
-v0.01 delivered (see `docs/PROTOTYPE_V001_REPORT.md`). **Next: human playtest + tuning of the variables listed in the report, then an Android mid-range device performance baseline.** Do not start v0.02 features (touch controls, passengers, progression) without that playtest.
+v0.01 delivered (`docs/PROTOTYPE_V001_REPORT.md`); v0.01a handling calibration delivered (`docs/PROTOTYPE_V001A_REPORT.md`). **Next: owner playtest answering the 7 experiential questions in the v0.01a report, then an Android mid-range device performance baseline.** Do not start v0.02 features (touch controls, passengers, progression, audio) without that playtest.
 
 ## Known technical debt
 
 - Road geometry is generated at runtime (not `@tool`), so `test_track.tscn` looks empty in the editor.
 - Hand-written `.tscn/.tres` without UIDs (Godot adds them when re-saved in the editor).
 - Traffic: no lane changes; treats the player as an obstacle only in a straight line ahead; kinematic traffic can shove the player.
-- Steady-state steering cannot tip the tuk on flat road (front-tyre understeer caps lateral g ~0.45 at speed); tip-overs need kerbs/collisions.
+- Near-miss footprint is the 1.3 × 2.6 m bounding box while physics uses a tapered hull (nose passes scored slightly conservatively).
+- Roll-state signal (`TukController.roll_state_changed`) has no player-facing feedback yet.
 - Sinhala/Tamil: no shipped font with those glyphs; strings are placeholders needing native review.
 - Performance numbers are from an Apple M2 only; no Android measurement yet.
 - HUD built in code rather than in an editable scene.

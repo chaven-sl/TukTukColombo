@@ -14,7 +14,8 @@ Set `GODOT=/path/to/Godot` if the binary is not at `/Applications/Godot.app/Cont
 |---|---|---|
 | Unit | `--headless --script res://tests/run_tests.gd` | combo progression/timeout/reset; passenger profile loading/validation; save round-trip, backup rotation, corrupt-primary recovery, all-corrupt reset, interrupted-save temp recovery, v0→v1 migration, future-schema refusal, type normalisation; adaptive budget hysteresis (dips ignored, gradual steps, cooldown, slower recovery, no thrash, caps); steering curve targets and smoothness; drive/roll-assist curves; oriented-rect distance; lane sampling/advisory; InputMap actions; renderer/physics/orientation settings; translations + fallback; four traffic classes / pool 24 |
 | Vehicle handling | `--headless --fixed-fps 60 res://tests/scenarios/vehicle_handling_test.tscn` | settle, 0–40/top speed, braking + nose dive, reverse, low-speed radius, turns at 30/60/65 km/h, high-speed flick, slalom recovery, kerb strike, reset from side |
-| Scoring | `--headless --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn` | close call, clearance/speed rejections, tight gap, combo ×1→×3, collision → no award + reset |
+| Vehicle dynamics (v0.01a) | `--headless --fixed-fps 60 res://tests/scenarios/vehicle_dynamics_test.tscn` | urban swerve 50 km/h, emergency swerve 60, brief top-speed swerve 68, sustained top-speed rollover, two-wheel recovery, town stability 25/30/35, rollover matrix 40/50/60/70, lane-change matrix 50/60/70 (all reported in km/h). `-- --screenshots` in a window adds chase-camera frames of two-wheel and rollover moments |
+| Scoring | `--headless --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn` | close call, extremely close non-contact pass, clearance/speed rejections, tight gap (tight and looser), lane-spacing negative, combo ×1→×3, collision → no award + reset |
 | Input smoke | `… res://tests/scenarios/input_smoke_test.tscn` | real prototype scene driven through InputMap actions: W/A/D/S, reverse, R, H, F1/F2/F3, Esc pause/resume |
 | Traffic soak (drive) | `… traffic_soak_test.tscn -- --duration=360` | autopilot laps through traffic: pool/node leaks, bounded population, no visible spawns, no teleports, no traffic overlap, junction service, bounded signal waits, speed variety, natural close calls, collision rate |
 | Traffic soak (junction) | `… -- --duration=360 --park-near-junction` | player parked beside the junction: throughput, no stalls/deadlock |
@@ -23,7 +24,11 @@ Results also go to `user://test_results/*.json` (macOS: `~/Library/Application S
 
 Windowed runs (`godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]`) add FPS, CPU-time and draw-call figures and save screenshots.
 
-## Latest results (2026-10-21, Apple M2)
+## Latest results (2026-10-21, Apple M2, after v0.01a)
+
+All stages pass — see `docs/PROTOTYPE_V001A_REPORT.md` for the figures (unit 40 tests / 238 assertions; dynamics all checks; scoring 9/9; input smoke; soaks clean). The v0.01 figures below are kept for history.
+
+## v0.01 results
 
 - Unit: **40 tests, 237 assertions, 0 failures**.
 - Vehicle handling: **all checks pass** (numbers in player_vehicle.md).
