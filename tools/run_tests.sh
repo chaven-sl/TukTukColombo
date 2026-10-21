@@ -21,11 +21,14 @@ if [ -z "$GODOT" ]; then
 fi
 
 status=0
+# Portable timeout (macOS has no `timeout`): perl alarm kills a hung stage.
+with_timeout() { local secs="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$secs" "$@"; }
 run() {
   local label="$1"; shift
   echo ""
   echo "##### $label"
-  if ! "$GODOT" --headless --path . "$@" 2>&1 | grep -v -E "^\s*$|^Godot Engine"; then :; fi
+  # A script parse error can leave Godot waiting forever; cap each stage.
+  if ! with_timeout 900 "$GODOT" --headless --path . "$@" 2>&1 | grep -v -E "^\s*$|^Godot Engine"; then :; fi
   local code=${PIPESTATUS[0]}
   if [ "$code" -ne 0 ]; then
     echo "##### $label FAILED (exit $code)"
@@ -40,9 +43,10 @@ run "Unit tests" --script res://tests/run_tests.gd
 run "Vehicle handling scenarios" --fixed-fps 60 res://tests/scenarios/vehicle_handling_test.tscn
 run "Vehicle dynamics v0.01a (swerve / rollover / recovery)" --fixed-fps 60 res://tests/scenarios/vehicle_dynamics_test.tscn
 run "Scoring scenarios" --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn
+run "Human world + passengers (real scene)" --fixed-fps 60 res://tests/scenarios/human_world_test.tscn
 run "Input smoke (real scene, InputMap actions)" --fixed-fps 60 res://tests/scenarios/input_smoke_test.tscn
-run "Traffic soak (6 min, driving)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360
-run "Traffic soak (6 min, junction stress)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 --park-near-junction
+run "Traffic + humans soak (6 min, driving)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360
+run "Traffic + humans soak (6 min, junction stress)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 --park-near-junction
 
 echo ""
 if [ "$status" -eq 0 ]; then echo "ALL TEST STAGES PASSED"; else echo "SOME TEST STAGES FAILED"; fi

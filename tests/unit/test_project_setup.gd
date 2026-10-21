@@ -1,9 +1,15 @@
 extends "res://tests/test_case.gd"
 
 const ACTIONS := ["accelerate", "brake_reverse", "steer_left", "steer_right", "handbrake", "horn",
-		"reset_vehicle", "pause", "debug_toggle_hud", "debug_toggle_traffic", "debug_toggle_vehicle"]
+		"reset_vehicle", "pause", "debug_toggle_hud", "debug_toggle_traffic", "debug_toggle_vehicle",
+		"interact", "debug_toggle_humans"]
 const UI_KEYS := ["UI_SCORE", "UI_SPEED", "UI_KMH", "UI_COMBO", "UI_COMBO_LOST", "UI_CLOSE_CALL",
-		"UI_TIGHT_GAP", "UI_PAUSED", "UI_PAUSE_HINT"]
+		"UI_TIGHT_GAP", "UI_PAUSED", "UI_PAUSE_HINT", "UI_ACCEPT_RIDE", "UI_DESTINATION", "UI_DISTANCE", "UI_PRIORITY",
+		"UI_PICKUP_HINT", "UI_REMAINING", "UI_PASSENGER_MOOD", "UI_RIDE_TIME", "UI_UNSAFE_DRIVING", "UI_RIDE_COMPLETE",
+		"UI_RIDE_FAILED", "UI_BASE_FARE", "UI_ADJUSTMENT", "UI_FINAL_FARE", "PASSENGER_RUSHED_NAME", "PASSENGER_CAREFUL_NAME",
+		"PASSENGER_THRILL_SEEKER_NAME", "PRIORITY_FAST", "PRIORITY_SAFE", "PRIORITY_EXCITING", "DEST_MARKET", "DEST_TEMPLE",
+		"DEST_SOUTH_JUNCTION", "DEST_CENTRAL_STOP", "REACT_HURRY_UP", "REACT_TOO_FAST", "REACT_CLOSE_CALL_POS",
+		"REACT_CLOSE_CALL_NEG", "REACT_PEDESTRIAN_DANGER", "REACT_ARRIVAL_SUCCESS", "REACT_ARRIVAL_POOR", "STYLE_SMOOTH"]
 
 
 func test_input_actions_exist_with_bindings() -> void:
@@ -49,3 +55,12 @@ func test_traffic_classes_cover_four_types_with_varied_speeds() -> void:
 		check(cls.max_speed_kmh - cls.min_speed_kmh >= 15.0, "%s has a wide speed range" % name)
 	check_eq(kinds.size(), 4, "four logical traffic types")
 	check_eq(pool, 24, "pool capacity 24")
+
+
+func test_new_keys_exist_in_every_catalogue() -> void:
+	# Sinhala/Tamil may leave msgstr empty (English fallback) but the key must exist.
+	for lang in ["en", "si", "ta"]:
+		var text := FileAccess.get_file_as_string("res://locale/%s.po" % lang)
+		for key in UI_KEYS:
+			check(text.contains('msgid "%s"' % key), "%s present in %s.po" % [key, lang])
+

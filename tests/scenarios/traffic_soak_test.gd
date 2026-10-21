@@ -25,6 +25,18 @@ var traffic: TrafficManager
 var player: TukController
 var network: RoadNetwork
 var autopilot: AutopilotDriver
+var humans: HumanManager
+var _human_pool_violations := 0
+var _human_max_active := 0
+var _human_wait: Dictionary = {}
+var _human_max_wait := 0.0
+var _human_last_pos: Dictionary = {}
+var _human_still: Dictionary = {}
+var _human_max_still_walking := 0.0
+var _human_usec_sum := 0
+var _human_usec_max := 0
+var _human_ticks := 0
+var _humans_min_active_after_fill := 999
 
 var _t := 0.0
 var _sample_timer := 0.0
@@ -58,10 +70,16 @@ func _ready() -> void:
 			park_near_junction = true
 		elif arg == "--perf":
 			perf_only = true
+		elif arg.begins_with("--shots="):
+			screenshots = true
+			_shot_times = PackedFloat32Array()
+			for part in arg.get_slice("=", 1).split(","):
+				_shot_times.append(float(part))
 	main = MAIN.instantiate()
 	main.get_node("TrafficManager").set("rng_seed", 20261021)
 	add_child(main)
 	traffic = main.get_node("TrafficManager")
+	humans = main.get_node("HumanManager")
 	player = main.get_node("PlayerTuk")
 	network = main.get_node("TestTrack")
 	autopilot = AutopilotDriver.new()
@@ -117,6 +135,7 @@ func _process(delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	_t += delta
+	_track_humans(delta)
 	if perf_only:
 		if _t >= duration:
 			_finish()
@@ -156,6 +175,29 @@ func _log_passes() -> void:
 			_closest[id] = [clear, rel, agent.forward_vec.dot(f3) < -0.5]
 
 
+func _track_humans(delta: float) -> void:
+	_human_usec_sum += humans.last_tick_usec
+	_human_usec_max = maxi(_human_usec_max, humans.last_tick_usec)
+	_human_ticks += 1
+	for a in humans.active:
+		var id := a.human_id
+		if a.state == HumanAgent.State.WAITING_TO_CROSS:
+			var w := float(_human_wait.get(id, 0.0)) + delta
+			_human_wait[id] = w
+			_human_max_wait = maxf(_human_max_wait, w)
+		else:
+			_human_wait[id] = 0.0
+		var p := a.global_position
+		var prev: Vector3 = _human_last_pos.get(id, p)
+		if a.state == HumanAgent.State.WALKING and p.distance_to(prev) < 0.0005:
+			var still := float(_human_still.get(id, 0.0)) + delta
+			_human_still[id] = still
+			_human_max_still_walking = maxf(_human_max_still_walking, still)
+		else:
+			_human_still[id] = 0.0
+		_human_last_pos[id] = p
+
+
 func _check_teleports(delta: float) -> void:
 	for agent in traffic.active_agents:
 		var id := agent.agent_id
@@ -191,6 +233,12 @@ func _sample() -> void:
 			nearest = minf(nearest, a.global_position.distance_to(player.global_position))
 		print("[pilot] t=%.0f pos=%s v=%.1f km/h lane=%s offset=%.2f nearest_agent=%.1f active=%d" % [_t, player.global_position.snapped(Vector3.ONE),
 			player.speed_kmh, autopilot.lane.source_name if autopilot.lane else "-", autopilot.lateral_offset, nearest, active])
+		var near := PackedStringArray()
+		for h in humans.active:
+			var rel := h.global_position - player.global_position
+			near.append("%s/%s@%.0fm%s" % [HumanAgent.Role.keys()[h.role].left(6), HumanAgent.State.keys()[h.state].left(7), rel.length(),
+				" ahead" if rel.dot(-player.global_transform.basis.z) > 0 else ""])
+		print("        humans: " + ", ".join(near))
 		var ixd := network.intersections[0]
 		print("        junction %s grants %s waiting %d | spawn_fail %d behind %d far %d sink %d budget %d" % [ixd.phase_description(), ixd.grants_issued, traffic.waiting_count(),
 			traffic.stats_spawn_failures, traffic.stats_behind_despawns, traffic.stats_despawned - traffic.stats_behind_despawns - traffic.stats_sink_despawns - traffic.stats_budget_despawns - traffic.stats_stuck_despawns,
@@ -200,6 +248,11 @@ func _sample() -> void:
 		_counts["min_active_after_fill"] = mini(int(_counts["min_active_after_fill"]), active)
 	if active + traffic.pool.total_free() != traffic.pool_capacity():
 		_counts["pool_violations"] = int(_counts["pool_violations"]) + 1
+	if humans.active.size() + humans.free_count() != humans.pool_capacity():
+		_human_pool_violations += 1
+	_human_max_active = maxi(_human_max_active, humans.active.size())
+	if _t > 20.0:
+		_humans_min_active_after_fill = mini(_humans_min_active_after_fill, humans.active.size())
 	# Traffic must not interpenetrate itself.
 	var agents := traffic.active_agents
 	for i in agents.size():
@@ -313,6 +366,19 @@ func _finish() -> void:
 		print("[passes] total %d buckets %s  close&fast %d  oncoming<=2.5m %d" % [_pass_log.size(), buckets, fast_close, oncoming_close])
 		for entry in _pass_log.slice(0, 25):
 			print("   clear %.2f rel %.1f oncoming %s" % [float(entry[0]), float(entry[1]), entry[2]])
+	_report["humans"] = {
+		"pool_capacity": humans.pool_capacity(), "max_active": _human_max_active,
+		"min_active_after_fill": _humans_min_active_after_fill, "spawned": humans.stats_spawned,
+		"released": humans.stats_released, "crossings_started": humans.stats_crossings_started,
+		"crossings_completed": humans.stats_crossings_completed, "crossings_abandoned": humans.stats_crossings_abandoned,
+		"reactions": humans.stats_reactions, "pedestrian_danger": humans.stats_danger_events,
+		"pedestrian_impacts": humans.stats_impacts, "max_wait_to_cross_s": snappedf(_human_max_wait, 0.1),
+		"max_stuck_walking_s": snappedf(_human_max_still_walking, 0.1),
+		"invalid_transitions": HumanAgent.invalid_transitions,
+		"ai_ms_mean": snappedf(_human_usec_sum / maxf(_human_ticks, 1.0) / 1000.0, 0.001),
+		"ai_ms_max": snappedf(_human_usec_max / 1000.0, 0.001),
+		"states_at_end": humans.state_counts(),
+	}
 	print("")
 	print("=== TRAFFIC SOAK (%.0f s simulated) ===" % duration)
 	print(JSON.stringify(_report, "  "))
@@ -337,6 +403,15 @@ func _finish() -> void:
 		_expect("close calls happen naturally (>= 1 per 2 min)", int(_counts["close_call"]) >= int(minutes * 0.5), str(_counts["close_call"]))
 	_expect("collisions happen but are not constant (< 6/min)", int(_counts["minor"]) + int(_counts["major"]) < 6.0 * minutes,
 			"%d minor, %d major" % [_counts["minor"], _counts["major"]])
+	var hr: Dictionary = _report["humans"]
+	_expect("human pool never leaks", _human_pool_violations == 0 and humans.pool_capacity() >= 16, "violations %d" % _human_pool_violations)
+	_expect("humans bounded (<= max active)", _human_max_active <= humans.config.max_active, "max %d" % _human_max_active)
+	_expect("no invalid human state transitions", HumanAgent.invalid_transitions == 0, str(HumanAgent.invalid_transitions))
+	_expect("no crossing deadlock (wait < give-up + 2 s)", _human_max_wait < humans.config.give_up_wait_seconds + 2.0, "%.1f s" % _human_max_wait)
+	_expect("nobody stranded while walking (< 5 s still)", _human_max_still_walking < 5.0, "%.1f s" % _human_max_still_walking)
+	_expect("human AI cost bounded (mean < 1 ms)", float(hr["ai_ms_mean"]) < 1.0, "%.3f ms" % float(hr["ai_ms_mean"]))
+	if duration >= 150.0 and not perf_only:
+		_expect("pedestrians cross roads", int(hr["crossings_completed"]) > 0, str(hr["crossings_completed"]))
 	print("=== %s ===" % ("PASS" if _failures.is_empty() else "FAIL: " + ", ".join(_failures)))
 	DirAccess.make_dir_recursive_absolute("user://test_results")
 	var f := FileAccess.open("user://test_results/traffic_soak.json", FileAccess.WRITE)

@@ -119,3 +119,42 @@ func test_missing_keys_filled_and_wrong_types_ignored() -> void:
 	check_eq(normalised["settings"]["locale"], "en", "wrong type falls back to default")
 	check_eq(normalised["prototype_stats"]["best_combo"], 0, "wrong type stat falls back")
 	check(normalised["prototype_stats"].has("total_close_calls"), "missing key filled")
+
+
+func test_v1_save_migrates_to_v2_preserving_data() -> void:
+	var store := _fresh_store("v1_to_v2")
+	var v1 := {
+		"schema_version": 1,
+		"settings": {"locale": "ta", "master_volume": 0.5, "show_debug_hud": true},
+		"prototype_stats": {"best_combo": 6, "highest_score": 4321, "total_close_calls": 77, "total_tight_gaps": 9},
+	}
+	_write(store.primary_path(), JSON.stringify(v1))
+	check_eq(store.load_document(), SaveStore.LoadResult.LOADED_PRIMARY, "v1 file accepted")
+	check_eq(store.data["schema_version"], 2, "upgraded to schema 2")
+	var stats: Dictionary = store.data["prototype_stats"]
+	check_eq(stats["best_combo"], 6, "best_combo preserved")
+	check_eq(stats["highest_score"], 4321, "highest_score preserved")
+	check_eq(stats["total_close_calls"], 77, "total_close_calls preserved")
+	check_eq(stats["total_tight_gaps"], 9, "total_tight_gaps preserved")
+	check_eq(store.data["settings"]["locale"], "ta", "settings preserved")
+	check_eq(store.data["settings"]["show_debug_hud"], true, "bool setting preserved")
+	for key in ["rides_completed", "rides_failed", "best_passenger_satisfaction", "pedestrian_impacts", "prototype_fares_total"]:
+		check_eq(stats.get(key, -1), 0, "%s added at 0" % key)
+	var per_type: Dictionary = stats["passenger_type_completions"]
+	check_eq(per_type.get("careful", -1), 0, "per-passenger counters added")
+	check(store.save_document(), "migrated document saves")
+	var again := SaveStore.new(DIR, "v1_to_v2")
+	again.load_document()
+	check_eq(again.data["prototype_stats"]["highest_score"], 4321, "survives a save/load round trip")
+
+
+func test_nested_counters_normalise_to_int() -> void:
+	var doc := SaveStore.default_document()
+	doc["prototype_stats"]["passenger_type_completions"] = {"rushed": 3.0, "careful": "bad", "vip": 2.0}
+	var n := SaveStore.normalise(doc)
+	var per_type: Dictionary = n["prototype_stats"]["passenger_type_completions"]
+	check_eq(per_type["rushed"], 3, "float count coerced to int")
+	check_eq(typeof(per_type["rushed"]), TYPE_INT, "int type")
+	check_eq(per_type["careful"], 0, "invalid value falls back to default")
+	check_eq(per_type.get("vip", -1), 2, "future passenger ids kept")
+

@@ -18,7 +18,7 @@ func test_profiles_load_and_validate() -> void:
 		check(not ids.has(profile.id), "id %s unique" % profile.id)
 		ids[profile.id] = true
 		var w := profile.normalised_weights()
-		check_near(w.x + w.y + w.z, 1.0, 0.0001, "%s weights normalise" % path)
+		check_near(w.x + w.y + w.z + w.w, 1.0, 0.0001, "%s weights normalise" % path)
 
 
 func test_profiles_are_meaningfully_different() -> void:

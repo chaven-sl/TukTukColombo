@@ -19,7 +19,11 @@ func _initialize() -> void:
 	for file_name in files:
 		if not file_name.begins_with("test_") or not file_name.ends_with(".gd"):
 			continue
-		var script: GDScript = load(UNIT_DIR.path_join(file_name))
+		var script := load(UNIT_DIR.path_join(file_name)) as GDScript
+		if script == null or not script.can_instantiate():
+			all_failures.append("%s: script failed to load (parse error?)" % file_name)
+			print("%-34s LOAD ERROR" % file_name.get_basename())
+			continue
 		var suite: RefCounted = script.new()
 		var suite_tests := 0
 		for method in script.get_script_method_list():
