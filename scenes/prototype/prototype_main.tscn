@@ -1,0 +1,78 @@
+[gd_scene load_steps=22 format=3]
+
+[ext_resource type="Script" path="res://scenes/prototype/prototype_main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/road/test_track.tscn" id="2_track"]
+[ext_resource type="PackedScene" path="res://scenes/player/player_tuk.tscn" id="3_tuk"]
+[ext_resource type="Script" path="res://scripts/camera/chase_camera.gd" id="4_cam"]
+[ext_resource type="Resource" path="res://resources/vehicles/chase_camera.tres" id="5_camcfg"]
+[ext_resource type="Script" path="res://scripts/traffic/traffic_manager.gd" id="6_traffic"]
+[ext_resource type="Resource" path="res://resources/traffic/traffic_config.tres" id="7_tcfg"]
+[ext_resource type="Resource" path="res://resources/traffic/traffic_budget.tres" id="8_budget"]
+[ext_resource type="Script" path="res://data/traffic/traffic_vehicle_class.gd" id="9_cls"]
+[ext_resource type="Resource" path="res://resources/traffic/car.tres" id="10_car"]
+[ext_resource type="Resource" path="res://resources/traffic/bus.tres" id="11_bus"]
+[ext_resource type="Resource" path="res://resources/traffic/motorcycle.tres" id="12_moto"]
+[ext_resource type="Resource" path="res://resources/traffic/tuk.tres" id="13_tuk"]
+[ext_resource type="Script" path="res://scripts/scoring/near_miss_detector.gd" id="14_nm"]
+[ext_resource type="Resource" path="res://resources/scoring/scoring_config.tres" id="15_score"]
+[ext_resource type="Script" path="res://scripts/scoring/scoring_system.gd" id="16_scoring"]
+[ext_resource type="Script" path="res://scripts/ui/prototype_hud.gd" id="17_hud"]
+[ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="18_debug"]
+[ext_resource type="Script" path="res://scripts/ui/pause_controller.gd" id="19_pause"]
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.64, 0.75, 0.86, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.62, 0.66, 0.72, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.64, 0.75, 0.86, 1)
+fog_density = 0.008
+fog_sky_affect = 0.0
+
+[node name="PrototypeMain" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.766, -0.4698, 0.4386, 0, 0.6820, 0.7314, -0.6428, -0.5598, 0.5227, 0, 30, 0)
+light_color = Color(1, 0.96, 0.88, 1)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_mode = 0
+directional_shadow_max_distance = 60.0
+
+[node name="TestTrack" parent="." instance=ExtResource("2_track")]
+
+[node name="PlayerTuk" parent="." instance=ExtResource("3_tuk")]
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+script = ExtResource("4_cam")
+config = ExtResource("5_camcfg")
+
+[node name="TrafficManager" type="Node3D" parent="."]
+script = ExtResource("6_traffic")
+config = ExtResource("7_tcfg")
+budget_config = ExtResource("8_budget")
+vehicle_classes = Array[ExtResource("9_cls")]([ExtResource("10_car"), ExtResource("11_bus"), ExtResource("12_moto"), ExtResource("13_tuk")])
+
+[node name="NearMissDetector" type="Node" parent="."]
+script = ExtResource("14_nm")
+config = ExtResource("15_score")
+
+[node name="ScoringSystem" type="Node" parent="."]
+script = ExtResource("16_scoring")
+config = ExtResource("15_score")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("17_hud")
+
+[node name="DebugOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("18_debug")
+
+[node name="Pause" type="CanvasLayer" parent="."]
+script = ExtResource("19_pause")
