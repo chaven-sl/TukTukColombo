@@ -38,6 +38,7 @@ echo "##### Import (refresh class cache)"
 
 run "Unit tests" --script res://tests/run_tests.gd
 run "Vehicle handling scenarios" --fixed-fps 60 res://tests/scenarios/vehicle_handling_test.tscn
+run "Vehicle dynamics v0.01a (swerve / rollover / recovery)" --fixed-fps 60 res://tests/scenarios/vehicle_dynamics_test.tscn
 run "Scoring scenarios" --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn
 run "Input smoke (real scene, InputMap actions)" --fixed-fps 60 res://tests/scenarios/input_smoke_test.tscn
 run "Traffic soak (6 min, driving)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360

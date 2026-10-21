@@ -166,8 +166,8 @@ func _check_teleports(delta: float) -> void:
 			if p.distance_to(prev) > allowed:
 				_counts["teleports"] = int(_counts["teleports"]) + 1
 				if OS.has_environment("SOAK_DEBUG") and _t > 0.5 and int(_counts["teleports"]) <= 40:
-					print("[teleport] t=%.2f %s jump %.2f m speed %.2f lane %s s %.2f/%.2f prev_lane %s next %s" % [_t, agent.name,
-						p.distance_to(prev), agent.speed, agent.lane.source_name, agent.s, agent.lane.length,
+					print("[teleport] t=%.2f %s jump %.2f m speed %.1f km/h lane %s s %.2f/%.2f prev_lane %s next %s" % [_t, agent.name,
+						p.distance_to(prev), agent.speed * 3.6, agent.lane.source_name, agent.s, agent.lane.length,
 						agent.prev_lane.source_name if agent.prev_lane else "-", agent.next_lane.source_name if agent.next_lane else "-"])
 		_last_pos[id] = p
 
@@ -214,8 +214,8 @@ func _sample() -> void:
 					cb, Vector2(b.forward_vec.x, b.forward_vec.z), b.half_width * 0.9, b.half_length * 0.9):
 				_counts["overlaps"] = int(_counts["overlaps"]) + 1
 				if OS.has_environment("SOAK_DEBUG") and int(_counts["overlaps"]) <= 10:
-					print("[overlap] %s(%s s=%.1f v=%.1f hold=%.1f) vs %s(%s s=%.1f v=%.1f hold=%.1f)" % [a.name, a.lane.source_name, a.s, a.speed, a.hold_timer,
-						b.name, b.lane.source_name, b.s, b.speed, b.hold_timer])
+					print("[overlap] %s(%s s=%.1f %.1f km/h hold=%.1f) vs %s(%s s=%.1f %.1f km/h hold=%.1f)" % [a.name, a.lane.source_name, a.s, a.speed * 3.6, a.hold_timer,
+						b.name, b.lane.source_name, b.s, b.speed * 3.6, b.hold_timer])
 	var ix := network.intersections[0]
 	var grants := ix.grants_issued[0] + ix.grants_issued[1]
 	if grants != _last_grant_total:

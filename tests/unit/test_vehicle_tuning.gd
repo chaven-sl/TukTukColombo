@@ -2,14 +2,19 @@ extends "res://tests/test_case.gd"
 
 
 func test_steering_curve_matches_design_targets() -> void:
+	# v0.01a targets (human playtest: keep high-speed steering useful).
 	var t := load("res://resources/vehicles/tuk_player_tuning.tres") as VehicleTuning
 	check(t != null, "player tuning resource loads")
-	check(t.steer_limit_deg(0.0) >= 32.0 and t.steer_limit_deg(15.0) <= 36.0, "<=15 km/h: 32-36 deg (%.1f)" % t.steer_limit_deg(10.0))
-	check_near(t.steer_limit_deg(30.0), 24.0, 1.5, "30 km/h ≈ 24 deg")
+	var at10 := t.steer_limit_deg(10.0)
+	check(at10 >= 35.0 and at10 <= 36.0, "<=15 km/h: 35-36 deg (%.1f)" % at10)
+	var at30 := t.steer_limit_deg(30.0)
+	check(at30 >= 28.0 and at30 <= 30.0, "30 km/h: 28-30 deg (%.1f)" % at30)
 	var at50 := t.steer_limit_deg(50.0)
-	check(at50 >= 15.5 and at50 <= 18.5, "50 km/h: 16-18 deg (%.1f)" % at50)
+	check(at50 >= 20.0 and at50 <= 22.0, "50 km/h: 20-22 deg (%.1f)" % at50)
+	var at60 := t.steer_limit_deg(60.0)
+	check(at60 >= 18.0 and at60 <= 20.0, "60 km/h: 18-20 deg (%.1f)" % at60)
 	var at70 := t.steer_limit_deg(70.0)
-	check(at70 >= 10.0 and at70 <= 13.0, "70 km/h: 10-13 deg (%.1f)" % at70)
+	check(at70 >= 15.0 and at70 <= 17.0, "70 km/h: 15-17 deg (%.1f)" % at70)
 
 
 func test_steering_blend_is_smooth_and_monotonic() -> void:

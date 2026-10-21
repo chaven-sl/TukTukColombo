@@ -77,7 +77,7 @@ func _process(delta: float) -> void:
 				_brake_checked = true
 				_check("S brakes", player.speed_kmh < _speed_before_brake - 10.0, "%.1f -> %.1f" % [_speed_before_brake, player.speed_kmh])
 			if _t > 6.0:
-				_check("S reverses when stopped", player.forward_speed < -1.0, "%.2f m/s" % player.forward_speed)
+				_check("S reverses when stopped", player.forward_speed < -1.0, "%.1f km/h backwards" % (-player.forward_speed * 3.6))
 				Input.action_release("brake_reverse")
 				_send("reset_vehicle")
 				_send("horn")
