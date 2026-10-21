@@ -10,6 +10,15 @@ extends Node3D
 @onready var scoring: ScoringSystem = $ScoringSystem
 @onready var hud: PrototypeHud = $HUD
 @onready var debug_overlay: DebugOverlay = $DebugOverlay
+@onready var pedestrians: PedestrianNetwork = $TestTrack/Pedestrians
+@onready var humans: HumanManager = $HumanManager
+@onready var offers: PassengerOfferManager = $PassengerOfferManager
+@onready var rides: RideManager = $RideManager
+@onready var ride_hud: RideHud = $RideHud
+
+## Fixed seeds for deterministic tests (0 = random).
+var human_seed := 0
+var offer_seed := 0
 
 
 func _ready() -> void:
@@ -25,6 +34,12 @@ func _ready() -> void:
 	player.was_reset.connect(camera.snap_to_target)
 	traffic.setup(network, player, camera)
 	near_miss.setup(player, traffic)
+	pedestrians.build(network)
+	humans.setup(pedestrians, traffic, player, camera, human_seed)
+	offers.setup(pedestrians, network, humans, offer_seed)
+	rides.setup(player, offers, humans, network, scoring)
 	hud.setup(player, scoring)
+	ride_hud.setup(rides, offers, self)
 	debug_overlay.setup(player, traffic, network, scoring, near_miss)
+	debug_overlay.setup_world(humans, rides, pedestrians)
 	GameState.reset_session()

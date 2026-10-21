@@ -19,6 +19,9 @@ var _traffic: TrafficManager
 var _network: RoadNetwork
 var _scoring: ScoringSystem
 var _near_miss: NearMissDetector
+var _humans: HumanManager
+var _rides: RideManager
+var _pedestrians: PedestrianNetwork
 
 
 func setup(player: TukController, traffic: TrafficManager, network: RoadNetwork,
@@ -39,6 +42,13 @@ func setup(player: TukController, traffic: TrafficManager, network: RoadNetwork,
 	_draw.material_override = _draw_material
 	_draw.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	network.add_child(_draw)
+	_apply_flags()
+
+
+func setup_world(humans: HumanManager, rides: RideManager, pedestrians: PedestrianNetwork) -> void:
+	_humans = humans
+	_rides = rides
+	_pedestrians = pedestrians
 	_apply_flags()
 
 
@@ -66,6 +76,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		GameState.toggle_traffic_debug()
 	elif event.is_action_pressed("debug_toggle_vehicle"):
 		GameState.toggle_vehicle_debug()
+	elif event.is_action_pressed("debug_toggle_humans"):
+		GameState.toggle_human_debug()
 
 
 func _apply_flags() -> void:
@@ -75,6 +87,12 @@ func _apply_flags() -> void:
 		_network.debug_mesh_instance.visible = GameState.traffic_debug_visible
 	if _immediate != null and not (GameState.traffic_debug_visible or GameState.vehicle_debug_visible):
 		_immediate.clear_surfaces()
+	if _pedestrians != null and _pedestrians.debug_mesh_instance != null:
+		_pedestrians.debug_mesh_instance.visible = GameState.human_debug_visible
+	if _humans != null:
+		for agent in _humans.all_agents:
+			if agent.debug_label != null:
+				agent.debug_label.visible = GameState.human_debug_visible
 
 
 func _process(delta: float) -> void:
@@ -82,6 +100,13 @@ func _process(delta: float) -> void:
 		return
 	if GameState.traffic_debug_visible or GameState.vehicle_debug_visible:
 		_draw_3d()
+	if GameState.human_debug_visible and _humans != null:
+		for agent in _humans.active:
+			if agent.debug_label != null:
+				agent.debug_label.text = "%s\n%s %s\n%.1f km/h" % [HumanAgent.Role.keys()[agent.role],
+						HumanAgent.State.keys()[agent.state],
+						HumanAgent.Reaction.keys()[agent.reaction] if agent.reaction != HumanAgent.Reaction.NONE else "",
+						agent.walk_speed_kmh()]
 	if not GameState.debug_hud_visible:
 		return
 	_refresh -= delta
@@ -132,7 +157,35 @@ func _compose_text() -> String:
 		lines.append("  junction %s: %s  grants %d/%d" % [ix.name, ix.phase_description(), ix.grants_issued[0],
 				ix.grants_issued[1]])
 	lines.append("")
-	lines.append("F1 overlay  F2 traffic  F3 vehicle  R reset  Esc pause")
+	if _rides != null:
+		lines.append("")
+		lines.append("RIDE")
+		var ride_line := "  state %s" % RideManager.RideState.keys()[_rides.state]
+		if _rides.offer != null:
+			ride_line += "   passenger %s → %s" % [_rides.offer.profile.id, _rides.offer.destination.spot_id]
+		lines.append(ride_line)
+		if _rides.telemetry != null and _rides.state == RideManager.RideState.ACTIVE:
+			var t := _rides.telemetry
+			var mood := PassengerSatisfaction.evaluate(t, _rides.offer.profile, _rides.offer.route_m, _rides.config)
+			lines.append("  satisfaction %d%% (time %d safety %d comfort %d excitement %d)" % [roundi(mood.final_score),
+					roundi(mood.time_score), roundi(mood.safety_score), roundi(mood.comfort_score), roundi(mood.excitement_score)])
+			lines.append("  time %.0f s   distance %.0f m   remaining %.0f m   avg %.1f km/h   max %.1f km/h" % [t.elapsed,
+					t.distance_m, _rides.remaining_m, t.average_speed_kmh(), t.max_speed_kmh])
+			lines.append("  close %d  tight %d  collisions %d (major %d)  two-wheel %d  rollovers %d  ped danger %d" % [
+					t.close_calls, t.tight_gaps, t.collisions, t.major_collisions, t.two_wheel_events, t.rollovers, t.pedestrian_danger])
+		lines.append("  session: rides %d done / %d failed   fares Rs. %d   pedestrian impacts %d" % [GameState.session_rides_completed,
+				GameState.session_rides_failed, GameState.session_fares, GameState.session_pedestrian_impacts])
+	if _humans != null:
+		lines.append("")
+		lines.append("HUMANS")
+		lines.append("  active %d (ambient %d / target %d, max %d)   pool %d free %d   AI %.2f ms" % [_humans.active.size(),
+				_humans.ambient_count(), _humans.config.ambient_target, _humans.config.max_active, _humans.pool_capacity(),
+				_humans.free_count(), _humans.last_tick_usec / 1000.0])
+		lines.append("  crossings started %d done %d abandoned %d   reactions %d   pedestrian danger %d   impacts %d" % [
+				_humans.stats_crossings_started, _humans.stats_crossings_completed, _humans.stats_crossings_abandoned,
+				_humans.stats_reactions, _humans.stats_danger_events, _humans.stats_impacts])
+	lines.append("")
+	lines.append("F1 overlay  F2 traffic  F3 vehicle  F4 humans  E accept ride  R reset  Esc pause")
 	return "\n".join(lines)
 
 

@@ -48,3 +48,146 @@ msgstr ""
 
 msgid "PASSENGER_THRILL_SEEKER_NAME"
 msgstr ""
+
+# --- v0.02 passengers and rides ---
+
+msgid "PRIORITY_FAST"
+msgstr ""
+
+msgid "PRIORITY_SAFE"
+msgstr ""
+
+msgid "PRIORITY_EXCITING"
+msgstr ""
+
+msgid "DEST_MARKET"
+msgstr ""
+
+msgid "DEST_TEMPLE"
+msgstr ""
+
+msgid "DEST_SOUTH_JUNCTION"
+msgstr ""
+
+msgid "DEST_CENTRAL_STOP"
+msgstr ""
+
+msgid "UI_DESTINATION"
+msgstr ""
+
+msgid "UI_DISTANCE"
+msgstr ""
+
+msgid "UI_PRIORITY"
+msgstr ""
+
+msgid "UI_ACCEPT_RIDE"
+msgstr ""
+
+msgid "UI_PICKUP_HINT"
+msgstr ""
+
+msgid "UI_BOARDING"
+msgstr ""
+
+msgid "UI_REMAINING"
+msgstr ""
+
+msgid "UI_PASSENGER_MOOD"
+msgstr ""
+
+msgid "UI_RIDE_TIME"
+msgstr ""
+
+msgid "UI_UNSAFE_DRIVING"
+msgstr ""
+
+msgid "UI_RIDE_COMPLETE"
+msgstr ""
+
+msgid "UI_RIDE_FAILED"
+msgstr ""
+
+msgid "FAIL_PEDESTRIAN"
+msgstr ""
+
+msgid "FAIL_ROLLOVER"
+msgstr ""
+
+msgid "UI_PASSENGER"
+msgstr ""
+
+msgid "UI_AVERAGE_SPEED"
+msgstr ""
+
+msgid "UI_DRIVING_STYLE"
+msgstr ""
+
+msgid "UI_PASSENGER_RATING"
+msgstr ""
+
+msgid "UI_BASE_FARE"
+msgstr ""
+
+msgid "UI_ADJUSTMENT"
+msgstr ""
+
+msgid "UI_FINAL_FARE"
+msgstr ""
+
+msgid "STYLE_UNSAFE_PEDESTRIANS"
+msgstr ""
+
+msgid "STYLE_CRASHY"
+msgstr ""
+
+msgid "STYLE_DAREDEVIL"
+msgstr ""
+
+msgid "STYLE_FAST"
+msgstr ""
+
+msgid "STYLE_SLOW"
+msgstr ""
+
+msgid "STYLE_SMOOTH"
+msgstr ""
+
+msgid "REACT_HURRY_UP"
+msgstr ""
+
+msgid "REACT_GOOD_SPEED"
+msgstr ""
+
+msgid "REACT_TOO_FAST"
+msgstr ""
+
+msgid "REACT_CLOSE_CALL_POS"
+msgstr ""
+
+msgid "REACT_CLOSE_CALL_NEG"
+msgstr ""
+
+msgid "REACT_TIGHT_GAP_POS"
+msgstr ""
+
+msgid "REACT_TIGHT_GAP_NEG"
+msgstr ""
+
+msgid "REACT_TWO_WHEEL_POS"
+msgstr ""
+
+msgid "REACT_TWO_WHEEL_NEG"
+msgstr ""
+
+msgid "REACT_COLLISION"
+msgstr ""
+
+msgid "REACT_PEDESTRIAN_DANGER"
+msgstr ""
+
+msgid "REACT_ARRIVAL_SUCCESS"
+msgstr ""
+
+msgid "REACT_ARRIVAL_POOR"
+msgstr ""

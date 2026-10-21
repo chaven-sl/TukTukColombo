@@ -34,13 +34,156 @@ msgid "UI_PAUSED"
 msgstr "PAUSED"
 
 msgid "UI_PAUSE_HINT"
-msgstr "Esc resume   ·   R reset tuk   ·   F1 debug"
+msgstr "Esc resume   ·   R reset tuk   ·   E accept ride   ·   F1 debug"
 
 msgid "PASSENGER_RUSHED_NAME"
-msgstr "Rushed Commuter"
+msgstr "Late Executive"
 
 msgid "PASSENGER_CAREFUL_NAME"
-msgstr "Careful Passenger"
+msgstr "Careful Aunty"
 
 msgid "PASSENGER_THRILL_SEEKER_NAME"
 msgstr "Thrill Seeker"
+
+# --- v0.02 passengers and rides ---
+
+msgid "PRIORITY_FAST"
+msgstr "FAST"
+
+msgid "PRIORITY_SAFE"
+msgstr "SAFE"
+
+msgid "PRIORITY_EXCITING"
+msgstr "EXCITING"
+
+msgid "DEST_MARKET"
+msgstr "Market"
+
+msgid "DEST_TEMPLE"
+msgstr "Temple Road"
+
+msgid "DEST_SOUTH_JUNCTION"
+msgstr "South Junction"
+
+msgid "DEST_CENTRAL_STOP"
+msgstr "Central Stop"
+
+msgid "UI_DESTINATION"
+msgstr "Destination"
+
+msgid "UI_DISTANCE"
+msgstr "Distance"
+
+msgid "UI_PRIORITY"
+msgstr "Priority"
+
+msgid "UI_ACCEPT_RIDE"
+msgstr "%s — ACCEPT RIDE"
+
+msgid "UI_PICKUP_HINT"
+msgstr "Stop next to the %s to pick them up"
+
+msgid "UI_BOARDING"
+msgstr "Passenger boarding…"
+
+msgid "UI_REMAINING"
+msgstr "Remaining"
+
+msgid "UI_PASSENGER_MOOD"
+msgstr "Passenger mood"
+
+msgid "UI_RIDE_TIME"
+msgstr "Time"
+
+msgid "UI_UNSAFE_DRIVING"
+msgstr "UNSAFE DRIVING"
+
+msgid "UI_RIDE_COMPLETE"
+msgstr "RIDE COMPLETE"
+
+msgid "UI_RIDE_FAILED"
+msgstr "RIDE FAILED"
+
+msgid "FAIL_PEDESTRIAN"
+msgstr "A pedestrian was hit."
+
+msgid "FAIL_ROLLOVER"
+msgstr "The tuk rolled over."
+
+msgid "UI_PASSENGER"
+msgstr "Passenger"
+
+msgid "UI_AVERAGE_SPEED"
+msgstr "Average speed"
+
+msgid "UI_DRIVING_STYLE"
+msgstr "Driving style"
+
+msgid "UI_PASSENGER_RATING"
+msgstr "Passenger rating"
+
+msgid "UI_BASE_FARE"
+msgstr "Base fare"
+
+msgid "UI_ADJUSTMENT"
+msgstr "Rating adjustment"
+
+msgid "UI_FINAL_FARE"
+msgstr "Final fare"
+
+msgid "STYLE_UNSAFE_PEDESTRIANS"
+msgstr "Unsafe around people"
+
+msgid "STYLE_CRASHY"
+msgstr "Crash-prone"
+
+msgid "STYLE_DAREDEVIL"
+msgstr "Daredevil"
+
+msgid "STYLE_FAST"
+msgstr "Fast"
+
+msgid "STYLE_SLOW"
+msgstr "Slow"
+
+msgid "STYLE_SMOOTH"
+msgstr "Smooth"
+
+msgid "REACT_HURRY_UP"
+msgstr "Can we go a bit faster? I'm late!"
+
+msgid "REACT_GOOD_SPEED"
+msgstr "Good, keep this pace."
+
+msgid "REACT_TOO_FAST"
+msgstr "Please slow down!"
+
+msgid "REACT_CLOSE_CALL_POS"
+msgstr "That was close! Again!"
+
+msgid "REACT_CLOSE_CALL_NEG"
+msgstr "Careful! That was far too close!"
+
+msgid "REACT_TIGHT_GAP_POS"
+msgstr "Through the gap! Yes!"
+
+msgid "REACT_TIGHT_GAP_NEG"
+msgstr "Don't squeeze through gaps like that!"
+
+msgid "REACT_TWO_WHEEL_POS"
+msgstr "Whoa, two wheels! Brilliant!"
+
+msgid "REACT_TWO_WHEEL_NEG"
+msgstr "We're tipping! Please stop that!"
+
+msgid "REACT_COLLISION"
+msgstr "Ouch! Watch where you're going!"
+
+msgid "REACT_PEDESTRIAN_DANGER"
+msgstr "You nearly hit someone! That's not okay."
+
+msgid "REACT_ARRIVAL_SUCCESS"
+msgstr "Thank you, great ride!"
+
+msgid "REACT_ARRIVAL_POOR"
+msgstr "Finally. That was not pleasant."

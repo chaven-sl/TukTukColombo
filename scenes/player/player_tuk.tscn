@@ -192,3 +192,9 @@ position = Vector3(0.575, 0.21, 1)
 rotation_degrees = Vector3(0, 0, 90)
 mesh = SubResource("Mesh_rear_wheel")
 surface_material_override/0 = SubResource("Mat_tyre")
+
+[node name="SeatMarker" type="Marker3D" parent="."]
+position = Vector3(0, 0.75, 0.75)
+
+[node name="BoardingPoint" type="Marker3D" parent="."]
+position = Vector3(-1.3, 0, 0.6)

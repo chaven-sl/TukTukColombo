@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=32 format=3]
 
 [ext_resource type="Script" path="res://scenes/prototype/prototype_main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/road/test_track.tscn" id="2_track"]
@@ -19,6 +19,16 @@
 [ext_resource type="Script" path="res://scripts/ui/prototype_hud.gd" id="17_hud"]
 [ext_resource type="Script" path="res://scripts/debug/debug_overlay.gd" id="18_debug"]
 [ext_resource type="Script" path="res://scripts/ui/pause_controller.gd" id="19_pause"]
+[ext_resource type="Script" path="res://scripts/humans/human_manager.gd" id="20_humans"]
+[ext_resource type="Resource" path="res://resources/humans/pedestrian_config.tres" id="21_pedcfg"]
+[ext_resource type="Script" path="res://scripts/rides/passenger_offer_manager.gd" id="22_offers"]
+[ext_resource type="Resource" path="res://resources/rides/ride_config.tres" id="23_ridecfg"]
+[ext_resource type="Script" path="res://data/passengers/passenger_profile.gd" id="24_profile"]
+[ext_resource type="Resource" path="res://resources/passengers/rushed.tres" id="25_rushed"]
+[ext_resource type="Resource" path="res://resources/passengers/careful.tres" id="26_careful"]
+[ext_resource type="Resource" path="res://resources/passengers/thrill_seeker.tres" id="27_thrill"]
+[ext_resource type="Script" path="res://scripts/rides/ride_manager.gd" id="28_rides"]
+[ext_resource type="Script" path="res://scripts/ui/ride_hud.gd" id="29_ridehud"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
@@ -76,3 +86,21 @@ script = ExtResource("18_debug")
 
 [node name="Pause" type="CanvasLayer" parent="."]
 script = ExtResource("19_pause")
+
+[node name="HumanManager" type="Node3D" parent="."]
+script = ExtResource("20_humans")
+config = ExtResource("21_pedcfg")
+
+[node name="PassengerOfferManager" type="Node" parent="."]
+script = ExtResource("22_offers")
+profiles = Array[ExtResource("24_profile")]([ExtResource("25_rushed"), ExtResource("26_careful"), ExtResource("27_thrill")])
+pickup_spot_ids = Array[StringName]([&"pickup_executive", &"pickup_aunty", &"pickup_thrill"])
+initial_destination_ids = Array[StringName]([&"dest_market", &"dest_south_junction", &"dest_temple"])
+config = ExtResource("23_ridecfg")
+
+[node name="RideManager" type="Node" parent="."]
+script = ExtResource("28_rides")
+config = ExtResource("23_ridecfg")
+
+[node name="RideHud" type="CanvasLayer" parent="."]
+script = ExtResource("29_ridehud")
