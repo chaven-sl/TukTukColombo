@@ -53,3 +53,7 @@ Unchanged from v0.01: subscribes to `EventBus.skill_event` / `collision_event`, 
 | side-swipe | collision, no award for that car, combo reset |
 
 In the 6-minute autopilot soak, close calls still occur naturally (6) while TIGHT GAP did not (0): the test autopilot does not deliberately thread two vehicles. Whether tight gaps now feel attainable is a human-playtest question.
+
+## Pedestrians (v0.02)
+
+People are never scorable. The detector reads only `TrafficManager.active_agents` (`TrafficAgent`s), and pedestrian incidents travel on their own EventBus signals (`pedestrian_danger`, `pedestrian_impact`). `ScoringSystem` resets the combo on `pedestrian_impact` and ignores `pedestrian_danger` completely. This is covered by `tests/scenarios/human_world_test.tscn` (driving between two people at 50 km/h produces 0 skill events).

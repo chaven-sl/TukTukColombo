@@ -1,4 +1,4 @@
-# Architecture (v0.2 — Prototype v0.01)
+# Architecture (v0.3 — Prototype v0.02)
 
 ## System map
 
@@ -9,13 +9,19 @@
                        └──────────────────────────────────────────────────────┘
 bootstrap.tscn ──► prototype_main.tscn (composition root: prototype_main.gd)
    ├─ TestTrack            RoadNetwork ─ RoadChain ─ RoadSegment …  IntersectionController
-   │                         └─ builds Lane graph, connectors, spawn slots, scenery, tunnels
+   │                         └─ builds Lane graph, connectors, spawn slots, scenery, tunnels, sidewalks
+   │   └─ Pedestrians      PedestrianNetwork (walk graph, CrossingZones → Lane.crossings, PedestrianSpots)
    ├─ PlayerTuk            TukController (RigidBody3D) ◄─ PlayerInputSource (InputMap)
    ├─ ChaseCamera          follows interpolated tuk transform; impulse on `impacted`
    ├─ TrafficManager       TrafficPool(24 TrafficAgent) + AdaptiveTrafficBudget
    │                         agents ask IntersectionController for permission
    ├─ NearMissDetector     reads player + active agents ─► EventBus.skill_event
    ├─ ScoringSystem        ComboManager; EventBus.skill/collision ─► score_awarded, combo_changed
+   ├─ HumanManager         pooled HumanAgents (roles + behaviours), ambient/groups/passengers,
+   │                         player-safety checks → EventBus.pedestrian_danger / pedestrian_impact
+   ├─ PassengerOfferManager one physical passenger + destination per pickup spot
+   ├─ RideManager          ride state machine, RideTelemetry, PassengerReactionSystem → RideResult
+   ├─ RideHud              offer card, ride panel, reaction bubble, result card, beacons
    ├─ HUD (PrototypeHud)   listens to EventBus; reads player telemetry
    ├─ DebugOverlay         F1/F2/F3
    └─ Pause                Esc
@@ -27,6 +33,8 @@ bootstrap.tscn ──► prototype_main.tscn (composition root: prototype_main.g
 2. `NearMissDetector` confirms a pass → `SkillEvent` (CLOSE_CALL / TIGHT_GAP) → `EventBus.skill_event`.
 3. `ScoringSystem` consumes both: skill → `ComboManager.register_event(base)` → `GameState.add_score` → `EventBus.score_awarded` + `combo_changed`; collision → `ComboManager.reset()` → `combo_changed(0)` + local `combo_lost`.
 4. `PrototypeHud` renders popups/combo; `GameState` persists bests via `SaveManager` (autosave every 20 s when dirty, on pause and on quit).
+
+5. (v0.02) `HumanManager` emits `pedestrian_danger` (never a reward) and `pedestrian_impact` (combo reset, ride failure, unsafe incident). `RideManager` turns skill/collision/pedestrian events plus per-tick samples into `RideTelemetry`; `PassengerSatisfaction` scores it with the passenger's profile; `ride_finished` carries the `RideResult` to `GameState` (save v2) and the HUD.
 
 ## Why these choices
 
@@ -41,6 +49,11 @@ bootstrap.tscn ──► prototype_main.tscn (composition root: prototype_main.g
 | Pure-logic RefCounted classes | Unit-testable without scenes. |
 | `SimClock` from physics frames | Headless `--fixed-fps` tests behave exactly like play. |
 | Physics interpolation on | Smooth on high-refresh displays; teleports call `reset_physics_interpolation()`. |
+| One `HumanAgent` for every person, roles as behaviour objects | Pedestrians and passengers share pooling, movement, reactions and presentation; future vendors/police are new roles, not new systems. |
+| People have no physics body | They must never shove (or be shoved by) the rigid tuk; contact is a gameplay event from a footprint check. |
+| Crossings live on the lane graph (`Lane.crossings`) | Traffic yields without knowing HumanAgent exists; pedestrians query traffic per crossing, not per frame per person. |
+| Profile-neutral `RideTelemetry` + one `PassengerSatisfaction` | The same drive can be scored for any passenger — the central v0.02 design experiment — with no per-passenger code. |
+| Pedestrian events on separate signals from `SkillEvent` | Makes "people are never a reward" structural, not a convention. |
 
 ## Data layout
 
@@ -49,6 +62,8 @@ bootstrap.tscn ──► prototype_main.tscn (composition root: prototype_main.g
 - `data/traffic/{traffic_vehicle_class,traffic_config,traffic_budget_config}.gd` → `resources/traffic/*.tres`
 - `data/scoring/scoring_config.gd` → `resources/scoring/scoring_config.tres`
 - `data/passengers/passenger_profile.gd` → `resources/passengers/{rushed,careful,thrill_seeker}.tres`
+- `data/humans/pedestrian_config.gd` → `resources/humans/pedestrian_config.tres`
+- `data/rides/ride_config.gd` → `resources/rides/ride_config.tres` (pickup, satisfaction, fare, reactions)
 
 Script defaults are the PROTOTYPE BASELINE; `.tres` files override only where an instance differs. Tune in the inspector on the `.tres`.
 
