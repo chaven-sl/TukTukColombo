@@ -98,14 +98,18 @@ func _compose_text() -> String:
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
 	lines.append("")
 	lines.append("VEHICLE")
-	lines.append("  speed %.1f km/h  (fwd %.2f m/s)" % [_player.speed_kmh, _player.forward_speed])
+	var two_wheel := _player.roll_state == TukController.RollState.TWO_WHEEL
+	lines.append("  speed %.1f km/h   (moving %s)" % [_player.speed_kmh, "forward" if _player.forward_speed >= 0.0 else "backward"])
 	lines.append("  steer input %+.2f   angle %+.1f°   limit %.1f°" % [_player.steer_input, _player.steer_angle_deg,
 			_player.tuning.steer_limit_deg(_player.speed_kmh)])
-	lines.append("  roll %+.1f°  pitch %+.1f°  lat %.2f g  long %.2f g" % [_player.roll_deg, _player.pitch_deg,
+	lines.append("  roll %+.1f°  pitch %+.1f°  lateral %.2f g  longitudinal %.2f g" % [_player.roll_deg, _player.pitch_deg,
 			_player.lateral_accel / 9.81, _player.longitudinal_accel / 9.81])
-	lines.append("  wheels grounded %d   compression F %.3f  RL %.3f  RR %.3f" % [_player.grounded_wheels,
+	lines.append("  roll state %s   TWO-WHEEL: %s   inside wheel load %d%%   wheels grounded %d" % [
+			TukController.RollState.keys()[_player.roll_state], "YES" if two_wheel else "NO",
+			roundi(_player.inside_wheel_load_ratio * 100.0), _player.grounded_wheels])
+	lines.append("  wheel contact  front %s  rear-left %s  rear-right %s   compression F %.3f RL %.3f RR %.3f m" % [
+			_contact(0), _contact(1), _contact(2),
 			_player.wheel_compression[0], _player.wheel_compression[1], _player.wheel_compression[2]])
-	lines.append("  velocity %s   tipped %s" % [_player.linear_velocity.snapped(Vector3(0.1, 0.1, 0.1)), _player.is_tipped])
 	lines.append("")
 	lines.append("SCORING")
 	var combo := _scoring.combo
@@ -130,6 +134,12 @@ func _compose_text() -> String:
 	lines.append("")
 	lines.append("F1 overlay  F2 traffic  F3 vehicle  R reset  Esc pause")
 	return "\n".join(lines)
+
+
+func _contact(i: int) -> String:
+	if _player.wheel_grounded[i] == 0:
+		return "AIR"
+	return "LIGHT" if _player.wheel_load[i] < 300.0 else "ok"
 
 
 func _draw_3d() -> void:

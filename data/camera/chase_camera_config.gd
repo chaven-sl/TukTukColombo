@@ -26,6 +26,12 @@ extends Resource
 @export var max_compression := 0.5
 @export var longitudinal_response := 3.0
 
+## Fraction of chassis roll the camera inherits (0 = horizon always level).
+## Small values communicate two-wheel moments without inducing nausea.
+@export var roll_inheritance := 0.15
+@export var max_camera_roll_deg := 5.0
+@export var roll_response := 6.0
+
 ## Collision impulse spring (short and restrained).
 @export var impulse_stiffness := 120.0
 @export var impulse_damping := 16.0

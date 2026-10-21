@@ -4,8 +4,8 @@
 [ext_resource type="Resource" path="res://resources/vehicles/tuk_player_tuning.tres" id="2_tune"]
 [ext_resource type="Script" path="res://scripts/player/player_input_source.gd" id="3_input"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
-size = Vector3(1.3, 1.43, 2.6)
+[sub_resource type="ConvexPolygonShape3D" id="Shape_body"]
+points = PackedVector3Array(-0.36, 0.38, -1.27, 0.36, 0.38, -1.27, -0.45, 1.05, -1.3, 0.45, 1.05, -1.3, -0.58, 0.3, -0.3, 0.58, 0.3, -0.3, -0.65, 0.3, 1.35, 0.65, 0.3, 1.35, -0.66, 1.74, -0.85, 0.66, 1.74, -0.85, -0.66, 1.74, 1.2, 0.66, 1.74, 1.2, -0.65, 1.0, 1.36, 0.65, 1.0, 1.36)
 
 [sub_resource type="StandardMaterial3D" id="Mat_body"]
 albedo_color = Color(0.72, 0.07, 0.06, 1)
@@ -88,8 +88,7 @@ tuning = ExtResource("2_tune")
 script = ExtResource("3_input")
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
-position = Vector3(0, 0.985, 0.05)
-shape = SubResource("BoxShape3D_body")
+shape = SubResource("Shape_body")
 
 [node name="Visual" type="Node3D" parent="."]
 

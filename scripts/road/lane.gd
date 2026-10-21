@@ -9,7 +9,7 @@ extends RefCounted
 var id := -1
 var points := PackedVector3Array()
 var cumulative := PackedFloat32Array()
-## Curvature-limited advisory speed per point (m/s).
+## Curvature-limited advisory speed per point (internal m/s; ×3.6 = km/h).
 var advisory := PackedFloat32Array()
 var length := 0.0
 

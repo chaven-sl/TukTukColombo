@@ -15,6 +15,11 @@ extends RigidBody3D
 
 signal impacted(event: CollisionEvent)
 signal was_reset()
+## Stability telemetry for future tyre audio, passenger reactions, camera or
+## warning UI. v0.01a: debug/state only.
+signal roll_state_changed(state: RollState)
+
+enum RollState { STABLE, INSIDE_WHEEL_LIGHT, TWO_WHEEL, ROLLOVER }
 
 const FRONT := 0
 const REAR_LEFT := 1
@@ -42,6 +47,9 @@ var lateral_accel := 0.0
 var longitudinal_accel := 0.0
 var grounded_wheels := 0
 var is_tipped := false
+var roll_state: RollState = RollState.STABLE
+## Load on the more lightly loaded rear wheel as a fraction of its static load.
+var inside_wheel_load_ratio := 1.0
 var wheel_grounded := PackedByteArray([0, 0, 0])
 var wheel_compression := PackedFloat32Array([0.0, 0.0, 0.0])
 var wheel_load := PackedFloat32Array([0.0, 0.0, 0.0])
@@ -206,9 +214,12 @@ func _physics_process(delta: float) -> void:
 		f_susp = maxf(f_susp, 0.0)
 		wheel_load[i] = f_susp
 		var offset := wheel_contact[i] - xf.origin
-		apply_force(up * f_susp, offset)
-
 		var n := _contact_normal[i]
+		# The ground pushes back along its normal. Applying the spring force
+		# along the (rolled) body axis instead would add a sideways push that
+		# grows with roll and cancels cornering force (v0.01 understeer defect).
+		apply_force(n * f_susp, offset)
+
 		var wheel_fwd := fwd.rotated(up, -steer_rad) if is_front else fwd
 		wheel_fwd = (wheel_fwd - n * wheel_fwd.dot(n)).normalized()
 		var wheel_right := wheel_fwd.cross(n)
@@ -268,7 +279,23 @@ func _physics_process(delta: float) -> void:
 		apply_torque(-up * angular_velocity.dot(up) * t.yaw_damping)
 
 	_update_tipped(delta, up)
+	_update_roll_state()
 	_update_wheel_visuals(steer_rad)
+
+
+func _update_roll_state() -> void:
+	inside_wheel_load_ratio = minf(wheel_load[REAR_LEFT] / maxf(_static_load[REAR_LEFT], 1.0),
+			wheel_load[REAR_RIGHT] / maxf(_static_load[REAR_RIGHT], 1.0))
+	var state := RollState.STABLE
+	if is_tipped:
+		state = RollState.ROLLOVER
+	elif grounded_wheels == 2 and wheel_grounded[FRONT] == 1 and absf(roll_deg) > 4.0:
+		state = RollState.TWO_WHEEL
+	elif inside_wheel_load_ratio < tuning.inside_wheel_light_load and grounded_wheels >= 2:
+		state = RollState.INSIDE_WHEEL_LIGHT
+	if state != roll_state:
+		roll_state = state
+		roll_state_changed.emit(state)
 
 
 func _update_steering(delta: float) -> void:
@@ -323,11 +350,11 @@ func _on_body_entered(body: Node) -> void:
 	var delta_v := _prev_velocity - linear_velocity
 	delta_v.y = 0.0
 	var impact := delta_v.length()
-	if impact < tuning.collision_minor_speed or now - _last_impact_time < tuning.impact_cooldown:
+	if impact * 3.6 < tuning.collision_minor_speed_kmh or now - _last_impact_time < tuning.impact_cooldown:
 		return
 	_last_impact_time = now
 	var ev := CollisionEvent.new()
-	ev.severity = CollisionEvent.Severity.MAJOR if impact >= tuning.collision_major_speed else CollisionEvent.Severity.MINOR
+	ev.severity = CollisionEvent.Severity.MAJOR if impact * 3.6 >= tuning.collision_major_speed_kmh else CollisionEvent.Severity.MINOR
 	ev.kind = CollisionEvent.Kind.TRAFFIC if agent != null else CollisionEvent.Kind.WORLD
 	ev.impact_speed = impact
 	ev.position = global_position
@@ -361,6 +388,7 @@ func teleport(pose: Transform3D) -> void:
 	lateral_accel = 0.0
 	longitudinal_accel = 0.0
 	is_tipped = false
+	roll_state = RollState.STABLE
 	_tipped_time = 0.0
 	_rollover_reported = false
 	_pending_major_slowdown = false
