@@ -12,6 +12,7 @@ extends Node
 ##                   happened, then classify and emit on EventBus.
 ## A TIGHT_GAP is two qualifying threat passes on opposite sides within
 ## tight_gap_window. Each agent has a cooldown so one car can't be farmed.
+## Speeds are configured in km/h; this node works in m/s internally.
 
 const STATE_IDLE := 0
 const STATE_TRACKING := 1
@@ -102,6 +103,7 @@ func _physics_process(delta: float) -> void:
 	var ext := player.half_extents()
 	var pv := Vector2(player.linear_velocity.x, player.linear_velocity.z)
 	var player_moving := player.speed_kmh >= cfg.min_player_speed_kmh
+	var min_rel := cfg.min_relative_speed_kmh / 3.6
 	var broad_sq := cfg.broad_phase_radius * cfg.broad_phase_radius
 	candidate_count = 0
 
@@ -134,7 +136,7 @@ func _physics_process(delta: float) -> void:
 		match _state[id]:
 			STATE_IDLE:
 				if clearance <= cfg.proximity_distance and player_moving \
-						and rel_speed >= cfg.min_relative_speed * 0.75 \
+						and rel_speed >= min_rel * 0.75 \
 						and now - agent.last_award_time >= cfg.agent_cooldown:
 					_state[id] = STATE_TRACKING
 					_start_time[id] = now
@@ -146,7 +148,7 @@ func _physics_process(delta: float) -> void:
 			STATE_TRACKING:
 				candidate_count += 1
 				_time_tracked[id] += delta
-				if absf(longitudinal) < ext.y + agent.half_length and rel_speed < cfg.min_relative_speed * 0.6:
+				if absf(longitudinal) < ext.y + agent.half_length and rel_speed < min_rel * 0.6:
 					_slow_alongside[id] += delta
 				if clearance < _min_clearance[id]:
 					_min_clearance[id] = clearance
@@ -190,16 +192,17 @@ func _confirm(agent: TrafficAgent, now: float) -> void:
 	var rel_speed := _cross_rel_speed[id]
 	var side := _side[id]
 	var oncoming := agent.forward_vec.dot(-player.global_transform.basis.z) < -0.5
-	var valid_close := clearance >= cfg.min_valid_clearance and clearance <= cfg.max_valid_clearance \
-			and rel_speed >= cfg.min_relative_speed
-	var threat := clearance <= cfg.tight_gap_threat_clearance and rel_speed >= cfg.tight_gap_min_relative_speed
+	var min_rel := cfg.min_relative_speed_kmh / 3.6
+	# No minimum clearance: contact is ruled out above by the collision check.
+	var valid_close := clearance <= cfg.max_valid_clearance and rel_speed >= min_rel
+	var threat := clearance <= cfg.tight_gap_threat_clearance and rel_speed >= cfg.tight_gap_min_relative_speed_kmh / 3.6
 
 	if threat and _last_threat_agent >= 0 and _last_threat_agent != id and side != _last_threat_side \
 			and absf(_cross_time[id] - _last_threat_time) <= cfg.tight_gap_window:
 		var ev := SkillEvent.new()
 		ev.type = SkillEvent.Type.TIGHT_GAP
 		ev.clearance = minf(clearance, _last_threat_clearance)
-		ev.relative_speed = rel_speed
+		ev.relative_speed_kmh = rel_speed * 3.6
 		ev.side = 0
 		ev.agent_ids = PackedInt32Array([_last_threat_agent, id])
 		ev.timestamp = now
@@ -221,7 +224,7 @@ func _confirm(agent: TrafficAgent, now: float) -> void:
 		var ev := SkillEvent.new()
 		ev.type = SkillEvent.Type.CLOSE_CALL
 		ev.clearance = clearance
-		ev.relative_speed = rel_speed
+		ev.relative_speed_kmh = rel_speed * 3.6
 		ev.side = side
 		ev.agent_ids = PackedInt32Array([id])
 		ev.timestamp = now
@@ -229,7 +232,7 @@ func _confirm(agent: TrafficAgent, now: float) -> void:
 		agent.last_award_time = now
 		events_close_call += 1
 		EventBus.skill_event.emit(ev)
-	elif rel_speed < cfg.min_relative_speed:
+	elif rel_speed < min_rel:
 		rejected_speed += 1
 	else:
 		rejected_clearance += 1

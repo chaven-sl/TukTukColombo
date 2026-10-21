@@ -17,15 +17,16 @@ extends Resource
 @export_group("Close call")
 ## Candidate tracking starts within this edge-to-edge distance (m).
 @export var proximity_distance := 2.0
-## A pass scores when the closest clearance is inside this band (m).
-@export var min_valid_clearance := 0.15
-@export var max_valid_clearance := 0.85
-## Relative speed needed at the pass (m/s). 6 m/s ≈ 22 km/h.
-@export var min_relative_speed := 6.0
+## A pass scores when the closest edge-to-edge clearance is at most this (m).
+## There is no lower bound: any pass without actual contact qualifies — the
+## collision system, not a distance threshold, decides whether contact happened.
+@export var max_valid_clearance := 0.95
+## Relative speed needed at the pass (km/h). Stops slow parking-speed farming.
+@export var min_relative_speed_kmh := 21.0
 ## The player must be driving, not parked while traffic passes.
 @export var min_player_speed_kmh := 15.0
 ## A candidate that stays alongside at low relative speed (below 60% of
-## min_relative_speed) for longer than this expires without scoring (s).
+## min_relative_speed_kmh) for longer than this expires without scoring (s).
 ## Stops "cruise next to a car" farming without punishing slow bus overtakes.
 @export var max_alongside_time := 0.8
 ## Absolute cap on how long one candidate can be tracked (s).
@@ -39,10 +40,11 @@ extends Resource
 
 @export_group("Tight gap")
 ## Passing threats on both sides within this window is a TIGHT GAP (s).
-@export var tight_gap_window := 0.7
+@export var tight_gap_window := 0.9
 ## Each side's clearance must be within this (m).
-@export var tight_gap_threat_clearance := 1.2
-@export var tight_gap_min_relative_speed := 4.0
+@export var tight_gap_threat_clearance := 1.35
+## Relative speed each threat must be passed at (km/h).
+@export var tight_gap_min_relative_speed_kmh := 16.0
 
 
 func points_for(event_type: int) -> int:
