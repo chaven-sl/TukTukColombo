@@ -1,0 +1,138 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/road/road_network.gd" id="1_net"]
+[ext_resource type="Script" path="res://scripts/road/road_chain.gd" id="2_chain"]
+[ext_resource type="Script" path="res://scripts/road/road_segment.gd" id="3_seg"]
+[ext_resource type="Script" path="res://scripts/road/intersection_controller.gd" id="4_ix"]
+
+[node name="TestTrack" type="Node3D"]
+script = ExtResource("1_net")
+
+[node name="MainLoop" type="Node3D" parent="."]
+script = ExtResource("2_chain")
+closed_loop = true
+
+[node name="LongStraight" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 260.0
+
+[node name="GentleCurve" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 141.372
+turn_angle_deg = 90.0
+
+[node name="WideTaperIn" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 20.0
+lane_width_end = 3.8
+median_width_end = 2.0
+shoulder_width_end = 2.5
+
+[node name="WideSection" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 100.0
+lane_width = 3.8
+median_width = 2.0
+shoulder_width = 2.5
+
+[node name="WideTaperOut" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 20.0
+lane_width = 3.8
+lane_width_end = 3.4
+median_width = 2.0
+median_width_end = 0.4
+shoulder_width = 2.5
+shoulder_width_end = 0.6
+
+[node name="SharpCorner" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 34.5575
+turn_angle_deg = 90.0
+
+[node name="NarrowTaperIn" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 15.0
+lane_width_end = 2.9
+median_width_end = 0.2
+shoulder_width_end = 0.15
+edge_left = 1
+edge_right = 1
+
+[node name="NarrowSection" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 90.0
+lane_width = 2.9
+median_width = 0.2
+shoulder_width = 0.15
+edge_left = 1
+edge_right = 1
+scenery_density = 0.6
+
+[node name="NarrowTaperOut" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 15.0
+lane_width = 2.9
+lane_width_end = 3.4
+median_width = 0.2
+median_width_end = 0.4
+shoulder_width = 0.15
+shoulder_width_end = 0.6
+edge_left = 1
+edge_right = 1
+
+[node name="EastStraight" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 208.0
+
+[node name="SouthEastCorner" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 62.8319
+turn_angle_deg = 90.0
+
+[node name="WestStraightA" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 76.0
+
+[node name="Junction" type="Node3D" parent="MainLoop"]
+script = ExtResource("4_ix")
+
+[node name="WestStraightB" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 76.0
+
+[node name="SouthWestCorner" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 62.8319
+turn_angle_deg = 90.0
+
+[node name="NorthArm" type="Node3D" parent="."]
+script = ExtResource("2_chain")
+attach_intersection = NodePath("../MainLoop/Junction")
+attach_arm = 1
+end_cap_tunnel = true
+
+[node name="NorthStreet" type="Node3D" parent="NorthArm"]
+script = ExtResource("3_seg")
+length = 110.0
+lanes_per_direction = 1
+lane_width = 3.3
+median_width = 0.2
+shoulder_width = 0.8
+
+[node name="SouthArm" type="Node3D" parent="."]
+script = ExtResource("2_chain")
+attach_intersection = NodePath("../MainLoop/Junction")
+attach_arm = 3
+end_cap_tunnel = true
+
+[node name="SouthStreet" type="Node3D" parent="SouthArm"]
+script = ExtResource("3_seg")
+length = 110.0
+lanes_per_direction = 1
+lane_width = 3.3
+median_width = 0.2
+shoulder_width = 0.8
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.3, 0.4, -20)

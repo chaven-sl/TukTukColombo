@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TrafficVehicleClass" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/traffic/traffic_vehicle_class.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"bus"
+kind = 1
+length = 11.0
+width = 2.5
+height = 3.1
+min_speed_kmh = 20.0
+max_speed_kmh = 40.0
+max_accel = 1.0
+comfortable_decel = 2.0
+max_decel = 5.0
+time_headway = 1.8
+min_gap = 3.5
+spawn_weight = 1.2
+pool_count = 3
+body_colors = PackedColorArray(0.7, 0.1, 0.08, 1, 0.15, 0.35, 0.65, 1, 0.92, 0.9, 0.85, 1)
