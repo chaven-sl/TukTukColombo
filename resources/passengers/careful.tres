@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PassengerProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/passengers/passenger_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"careful"
+display_name_key = "PASSENGER_CAREFUL_NAME"
+time_weight = 0.15
+safety_weight = 0.55
+comfort_weight = 0.3
+risk_tolerance = 0.1
+collision_penalty_multiplier = 2.5
+close_call_preference = -0.8
+speed_preference_kmh = 30.0
+speed_tolerance_kmh = 8.0

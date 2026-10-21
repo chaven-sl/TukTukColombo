@@ -1,0 +1,46 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: TukTuk Colombo 0.0.1\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "UI_SCORE"
+msgstr "SCORE"
+
+msgid "UI_SPEED"
+msgstr "SPEED"
+
+msgid "UI_KMH"
+msgstr "km/h"
+
+msgid "UI_COMBO"
+msgstr "COMBO"
+
+msgid "UI_COMBO_LOST"
+msgstr "COMBO LOST"
+
+msgid "UI_CLOSE_CALL"
+msgstr "CLOSE CALL"
+
+msgid "UI_TIGHT_GAP"
+msgstr "TIGHT GAP"
+
+msgid "UI_ONCOMING"
+msgstr "ONCOMING"
+
+msgid "UI_PAUSED"
+msgstr "PAUSED"
+
+msgid "UI_PAUSE_HINT"
+msgstr "Esc resume   ·   R reset tuk   ·   F1 debug"
+
+msgid "PASSENGER_RUSHED_NAME"
+msgstr "Rushed Commuter"
+
+msgid "PASSENGER_CAREFUL_NAME"
+msgstr "Careful Passenger"
+
+msgid "PASSENGER_THRILL_SEEKER_NAME"
+msgstr "Thrill Seeker"

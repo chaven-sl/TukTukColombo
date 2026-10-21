@@ -1,0 +1,50 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: TukTuk Colombo 0.0.1\n"
+"Language: ta\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Tamil — PROTOTYPE TEST STRINGS ONLY. Requires native-speaker review and a
+# Tamil-capable font before release (see docs/localisation.md).
+# Empty msgstr falls back to English.
+
+msgid "UI_SCORE"
+msgstr "மதிப்பெண்"
+
+msgid "UI_SPEED"
+msgstr "வேகம்"
+
+msgid "UI_KMH"
+msgstr ""
+
+msgid "UI_COMBO"
+msgstr ""
+
+msgid "UI_COMBO_LOST"
+msgstr ""
+
+msgid "UI_CLOSE_CALL"
+msgstr ""
+
+msgid "UI_TIGHT_GAP"
+msgstr ""
+
+msgid "UI_ONCOMING"
+msgstr ""
+
+msgid "UI_PAUSED"
+msgstr ""
+
+msgid "UI_PAUSE_HINT"
+msgstr ""
+
+msgid "PASSENGER_RUSHED_NAME"
+msgstr ""
+
+msgid "PASSENGER_CAREFUL_NAME"
+msgstr ""
+
+msgid "PASSENGER_THRILL_SEEKER_NAME"
+msgstr ""
