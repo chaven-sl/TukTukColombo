@@ -13,7 +13,7 @@ extends RefCounted
 ## bak -> promote tmp to primary. Load flow: primary -> tmp -> bak -> defaults.
 ## Migrations upgrade older schema versions step by step.
 
-const CURRENT_SCHEMA_VERSION := 1
+const CURRENT_SCHEMA_VERSION := 2
 
 enum LoadResult {
 	LOADED_PRIMARY,    ## primary was valid
@@ -65,6 +65,13 @@ static func default_document() -> Dictionary:
 			"highest_score": 0,
 			"total_close_calls": 0,
 			"total_tight_gaps": 0,
+			# v2 (prototype v0.02)
+			"rides_completed": 0,
+			"rides_failed": 0,
+			"best_passenger_satisfaction": 0,
+			"pedestrian_impacts": 0,
+			"prototype_fares_total": 0,
+			"passenger_type_completions": {"rushed": 0, "careful": 0, "thrill_seeker": 0},
 		},
 	}
 
@@ -167,6 +174,8 @@ static func migrate(doc: Dictionary, from_version: int) -> Dictionary:
 		match version:
 			0:
 				doc = _migrate_0_to_1(doc)
+			1:
+				doc = _migrate_1_to_2(doc)
 		version += 1
 	doc["schema_version"] = CURRENT_SCHEMA_VERSION
 	return doc
@@ -182,6 +191,19 @@ static func _migrate_0_to_1(doc: Dictionary) -> Dictionary:
 	if doc.has("high_score"):
 		stats["highest_score"] = int(doc["high_score"])
 	return upgraded
+
+
+## v1 -> v2: adds ride/passenger statistics. Every v1 value is kept as is;
+## the new counters start at zero.
+static func _migrate_1_to_2(doc: Dictionary) -> Dictionary:
+	var stats: Dictionary = doc.get("prototype_stats", {}) if typeof(doc.get("prototype_stats")) == TYPE_DICTIONARY else {}
+	for key in ["rides_completed", "rides_failed", "best_passenger_satisfaction", "pedestrian_impacts", "prototype_fares_total"]:
+		if not stats.has(key):
+			stats[key] = 0
+	if not stats.has("passenger_type_completions"):
+		stats["passenger_type_completions"] = {"rushed": 0, "careful": 0, "thrill_seeker": 0}
+	doc["prototype_stats"] = stats
+	return doc
 
 
 ## Fills missing keys from defaults and coerces types (JSON numbers are floats).
@@ -213,6 +235,16 @@ static func normalise(doc: Dictionary) -> Dictionary:
 				TYPE_STRING:
 					if typeof(value) == TYPE_STRING:
 						target[key] = value
+				TYPE_DICTIONARY:
+					# Nested counters (e.g. per passenger type): keep known
+					# numeric entries, accept new ids, coerce to int.
+					if typeof(value) == TYPE_DICTIONARY:
+						var merged: Dictionary = (default_value as Dictionary).duplicate()
+						for sub in (value as Dictionary).keys():
+							var sub_value: Variant = value[sub]
+							if typeof(sub_value) == TYPE_FLOAT or typeof(sub_value) == TYPE_INT:
+								merged[sub] = int(sub_value)
+						target[key] = merged
 	result["schema_version"] = CURRENT_SCHEMA_VERSION
 	return result
 
