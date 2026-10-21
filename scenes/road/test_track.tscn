@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/road/road_network.gd" id="1_net"]
 [ext_resource type="Script" path="res://scripts/road/road_chain.gd" id="2_chain"]
 [ext_resource type="Script" path="res://scripts/road/road_segment.gd" id="3_seg"]
 [ext_resource type="Script" path="res://scripts/road/intersection_controller.gd" id="4_ix"]
+[ext_resource type="Script" path="res://scripts/humans/pedestrian_network.gd" id="5_ped"]
+[ext_resource type="Script" path="res://scripts/humans/pedestrian_spot.gd" id="6_spot"]
 
 [node name="TestTrack" type="Node3D"]
 script = ExtResource("1_net")
@@ -15,6 +17,10 @@ closed_loop = true
 [node name="LongStraight" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
 length = 260.0
+sidewalk_left = true
+sidewalk_right = true
+crossing_s = PackedFloat32Array(130, 215)
+crossing_styles = PackedInt32Array(0, 1)
 
 [node name="GentleCurve" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
@@ -34,6 +40,7 @@ length = 100.0
 lane_width = 3.8
 median_width = 2.0
 shoulder_width = 2.5
+sidewalk_left = true
 
 [node name="WideTaperOut" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
@@ -93,6 +100,8 @@ turn_angle_deg = 90.0
 [node name="WestStraightA" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
 length = 76.0
+sidewalk_left = true
+sidewalk_right = true
 
 [node name="Junction" type="Node3D" parent="MainLoop"]
 script = ExtResource("4_ix")
@@ -100,6 +109,10 @@ script = ExtResource("4_ix")
 [node name="WestStraightB" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
 length = 76.0
+sidewalk_left = true
+sidewalk_right = true
+crossing_s = PackedFloat32Array(45)
+crossing_styles = PackedInt32Array(0)
 
 [node name="SouthWestCorner" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
@@ -119,6 +132,11 @@ lanes_per_direction = 1
 lane_width = 3.3
 median_width = 0.2
 shoulder_width = 0.8
+sidewalk_left = true
+sidewalk_right = true
+sidewalk_trim_end = 26.0
+crossing_s = PackedFloat32Array(40)
+crossing_styles = PackedInt32Array(0)
 
 [node name="SouthArm" type="Node3D" parent="."]
 script = ExtResource("2_chain")
@@ -133,6 +151,81 @@ lanes_per_direction = 1
 lane_width = 3.3
 median_width = 0.2
 shoulder_width = 0.8
+sidewalk_left = true
+sidewalk_right = true
+sidewalk_trim_end = 26.0
+crossing_s = PackedFloat32Array(60)
+crossing_styles = PackedInt32Array(1)
 
 [node name="PlayerSpawn" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.3, 0.4, -20)
+
+[node name="Pedestrians" type="Node3D" parent="."]
+script = ExtResource("5_ped")
+
+[node name="PickupExecutive" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2, 0.15, -60)
+script = ExtResource("6_spot")
+kind = 2
+spot_id = &"pickup_executive"
+
+[node name="PickupAunty" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.2, 0.15, -200)
+script = ExtResource("6_spot")
+kind = 2
+spot_id = &"pickup_aunty"
+
+[node name="PickupThrill" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.2, 0.15, -20)
+script = ExtResource("6_spot")
+kind = 2
+spot_id = &"pickup_thrill"
+
+[node name="DestMarket" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 160, 0.15, -362.7)
+script = ExtResource("6_spot")
+kind = 3
+spot_id = &"dest_market"
+display_name_key = "DEST_MARKET"
+dressing = 2
+
+[node name="DestTemple" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2, 0.15, -150)
+script = ExtResource("6_spot")
+kind = 3
+spot_id = &"dest_temple"
+display_name_key = "DEST_TEMPLE"
+
+[node name="DestSouthJunction" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.8, 0.15, 95)
+script = ExtResource("6_spot")
+kind = 3
+spot_id = &"dest_south_junction"
+display_name_key = "DEST_SOUTH_JUNCTION"
+
+[node name="DestCentralStop" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66, 0.15, 49.2)
+script = ExtResource("6_spot")
+kind = 3
+spot_id = &"dest_central_stop"
+display_name_key = "DEST_CENTRAL_STOP"
+
+[node name="BusStopGroup" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 0.15, 49.2)
+script = ExtResource("6_spot")
+kind = 1
+spot_id = &"group_bus_stop"
+dressing = 1
+
+[node name="ShopFront" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.2, 0.15, -100)
+script = ExtResource("6_spot")
+kind = 0
+spot_id = &"wait_shop"
+dressing = 2
+
+[node name="CrossingWait" type="Marker3D" parent="Pedestrians"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.2, 0.15, -125)
+script = ExtResource("6_spot")
+kind = 0
+spot_id = &"wait_crossing"

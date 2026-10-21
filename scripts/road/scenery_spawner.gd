@@ -79,7 +79,11 @@ func _collect_road_samples(network: RoadNetwork) -> void:
 		for k in steps + 1:
 			var s := seg.length * float(k) / float(steps)
 			var p := seg.global_transform * seg.local_center(s)
-			_road_samples.append(Vector3(p.x, seg.half_width(s) + 0.5, p.z))
+			var extent := maxf(seg.outer_extent(s, -1.0), seg.outer_extent(s, 1.0))
+			_road_samples.append(Vector3(p.x, extent + 0.5, p.z))
+	# Keep pedestrian spots (bus stop, shop fronts, pickups) clear of dressing.
+	for sp in _spot_positions(network):
+		_road_samples.append(Vector3(sp.x, 7.0, sp.z))
 	for ix in network.intersections:
 		var p := ix.global_position
 		_road_samples.append(Vector3(p.x, ix.size * 0.75, p.z))
@@ -89,6 +93,15 @@ func _collect_road_samples(network: RoadNetwork) -> void:
 			for k in 4:
 				var p := e.origin + e.basis.z * (k * chain.tunnel_depth / 3.0)
 				_road_samples.append(Vector3(p.x, 9.0, p.z))
+
+
+func _spot_positions(node: Node) -> PackedVector3Array:
+	var result := PackedVector3Array()
+	for child in node.get_children():
+		if child is PedestrianSpot:
+			result.append((child as Node3D).global_position)
+		result.append_array(_spot_positions(child))
+	return result
 
 
 func _clear_of_roads(p: Vector3, radius: float) -> bool:
@@ -104,10 +117,12 @@ func _clear_of_roads(p: Vector3, radius: float) -> bool:
 func _place_along(seg: RoadSegment, side: float, buildings: Array[Transform3D], building_colors: PackedColorArray,
 		trees: Array[Transform3D], lamps: Array[Transform3D]) -> void:
 	var xf := seg.global_transform
-	# Lamp posts every ~28 m just outside the kerb.
+	# Lamp posts every ~28 m: at the back of a sidewalk, else just past the kerb.
 	var s := 6.0
 	while s < seg.length:
 		var off := seg.half_width(s) + 1.1
+		if seg.has_sidewalk(side):
+			off = seg.outer_extent(s, side) - 0.3
 		var p := xf * (seg.local_center(s) + seg.local_right(s) * side * off)
 		if _clear_of_roads(p, 0.3):
 			lamps.append(Transform3D(Basis.IDENTITY, Vector3(p.x, 0.0, p.z)))
@@ -117,7 +132,7 @@ func _place_along(seg: RoadSegment, side: float, buildings: Array[Transform3D], 
 	while s < seg.length:
 		var basis := MathUtil.basis_from_forward(xf.basis * seg.local_tangent(s))
 		if _rng.randf() < 0.45:
-			var off := seg.half_width(s) + _rng.randf_range(3.0, 5.5)
+			var off := seg.outer_extent(s, side) + _rng.randf_range(1.5, 4.0)
 			var p := xf * (seg.local_center(s) + seg.local_right(s) * side * off)
 			if _clear_of_roads(p, 2.0):
 				trees.append(Transform3D(Basis.IDENTITY, Vector3(p.x, 0.0, p.z)))
@@ -126,7 +141,7 @@ func _place_along(seg: RoadSegment, side: float, buildings: Array[Transform3D], 
 			var width := _rng.randf_range(8.0, 18.0)
 			var depth := _rng.randf_range(8.0, 16.0)
 			var height := _rng.randf_range(4.0, 14.0)
-			var off := seg.half_width(s) + _rng.randf_range(7.0, 12.0) + depth * 0.5
+			var off := seg.outer_extent(s, side) + _rng.randf_range(5.0, 10.0) + depth * 0.5
 			var p := xf * (seg.local_center(s) + seg.local_right(s) * side * off)
 			if _clear_of_roads(p, maxf(width, depth) * 0.6):
 				var b := basis.scaled(Vector3(width, height, depth))

@@ -22,6 +22,8 @@ var sink_lanes: Array[Lane] = []
 var spawn_slot_lanes: Array[Lane] = []
 var spawn_slot_s := PackedFloat32Array()
 var spawn_slot_pos := PackedVector3Array()
+## RoadSegment -> Array of the Lanes it generated (used by pedestrian crossings).
+var segment_lanes: Dictionary = {}
 var debug_mesh_instance: MeshInstance3D
 var materials: Dictionary = {}
 var is_built := false
@@ -37,9 +39,12 @@ func build() -> void:
 	_build_ground()
 	for seg in segments:
 		seg.build_geometry(materials)
+		var seg_list: Array[Lane] = []
 		for lane in seg.build_lanes():
 			lane.id = lanes.size()
 			lanes.append(lane)
+			seg_list.append(lane)
+		segment_lanes[seg] = seg_list
 	_auto_connect()
 	for ix in intersections:
 		for connector in ix.build(lanes, materials):
@@ -74,8 +79,10 @@ func _exit_tree() -> void:
 		lane.neighbours.clear()
 		lane.conflicts.clear()
 		lane.agents.clear()
+		lane.crossings.clear()
 		lane.intersection = null
 	lanes.clear()
+	segment_lanes.clear()
 	source_lanes.clear()
 	sink_lanes.clear()
 	spawn_slot_lanes.clear()
@@ -176,6 +183,66 @@ func find_reset_transform(position: Vector3) -> Transform3D:
 	var s := best_lane.closest_s(position)
 	var p := best_lane.sample_position(s)
 	return Transform3D(MathUtil.basis_from_forward(best_lane.sample_tangent(s)), p + Vector3.UP * 0.35)
+
+
+## Shortest driving distance (m) between two points along the directed lane
+## graph (Dijkstra over lanes; a few dozen lanes, so cheap enough at ~1 Hz).
+## Both ends snap to any ordinary lane within `radius`, either direction, so a
+## route may start with a U-turn. Falls back to 1.3 × straight-line distance.
+func route_distance(from_pos: Vector3, to_pos: Vector3, radius: float = 14.0) -> float:
+	var starts := _lanes_near(from_pos, radius)
+	var ends := _lanes_near(to_pos, radius)
+	if starts.is_empty() or ends.is_empty():
+		return from_pos.distance_to(to_pos) * 1.3
+	var end_s: Dictionary = {}
+	for e in ends:
+		end_s[e[0]] = float(e[1])
+	var best := INF
+	var dist: Dictionary = {}
+	for st in starts:
+		var lane: Lane = st[0]
+		var s0: float = st[1]
+		if end_s.has(lane) and float(end_s[lane]) >= s0:
+			best = minf(best, float(end_s[lane]) - s0)
+		for succ in lane.successors:
+			var d := lane.length - s0
+			if d < float(dist.get(succ, INF)):
+				dist[succ] = d
+	var visited: Dictionary = {}
+	while true:
+		var cur: Lane = null
+		var cur_d := INF
+		for lane_key in dist.keys():
+			if visited.has(lane_key):
+				continue
+			var d2: float = dist[lane_key]
+			if d2 < cur_d:
+				cur_d = d2
+				cur = lane_key
+		if cur == null or cur_d >= best:
+			break
+		visited[cur] = true
+		if end_s.has(cur):
+			best = minf(best, cur_d + float(end_s[cur]))
+		for succ in cur.successors:
+			var nd := cur_d + cur.length
+			if nd < float(dist.get(succ, INF)):
+				dist[succ] = nd
+	if best == INF:
+		return from_pos.distance_to(to_pos) * 1.3
+	return best
+
+
+func _lanes_near(pos: Vector3, radius: float) -> Array:
+	var result: Array = []
+	var r_sq := radius * radius
+	for lane in lanes:
+		if lane.is_connector:
+			continue
+		var s := lane.closest_s(pos)
+		if lane.sample_position(s).distance_squared_to(pos) <= r_sq:
+			result.append([lane, s])
+	return result
 
 
 func _build_debug_mesh() -> void:

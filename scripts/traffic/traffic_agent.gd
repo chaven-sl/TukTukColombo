@@ -126,6 +126,10 @@ func _compute_accel(ctx: TrafficManager) -> float:
 	if player_gap < gap:
 		gap = player_gap
 		lead_v = _player_speed
+	var crossing_gap := _crossing_gap()
+	if crossing_gap < gap:
+		gap = crossing_gap
+		lead_v = 0.0
 	waiting_for_signal = false
 	var stop_gap := _stop_line_gap()
 	if stop_gap < gap:
@@ -204,6 +208,27 @@ func _player_gap(ctx: TrafficManager) -> float:
 		return INF
 	_player_speed = maxf(ctx.player_velocity.dot(forward_vec), 0.0)
 	return d_long - half_length - ctx.player_half_length
+
+
+## Yield to people on a pedestrian crossing ahead (this lane or the next).
+## Vehicles already over the crossing line carry on.
+func _crossing_gap() -> float:
+	var best := INF
+	for i in lane.crossings.size():
+		if lane.crossings[i].occupied_count <= 0:
+			continue
+		var g := lane.crossing_s[i] - 2.5 - s - half_length
+		if g > -0.5 and g < best:
+			best = maxf(g, 0.0)
+	if next_lane != null and best == INF:
+		var base := lane.length - s - half_length
+		for i in next_lane.crossings.size():
+			if next_lane.crossings[i].occupied_count <= 0:
+				continue
+			var g2 := base + next_lane.crossing_s[i] - 2.5
+			if g2 < LOOKAHEAD and g2 < best:
+				best = maxf(g2, 0.0)
+	return best
 
 
 func _stop_line_gap() -> float:

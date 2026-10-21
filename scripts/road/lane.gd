@@ -39,6 +39,11 @@ var conflicts: Array[Lane] = []
 ## Agents holding a junction grant for this connector (approaching or inside).
 var reserved := 0
 
+# --- Pedestrian crossings on this lane (set by PedestrianNetwork) ---
+## Traffic yields at crossing_s[i] while crossings[i].occupied_count > 0.
+var crossings: Array[CrossingZone] = []
+var crossing_s := PackedFloat32Array()
+
 
 func set_points(pts: PackedVector3Array, lateral_accel: float = 2.8, min_advisory: float = 3.5) -> void:
 	points = pts

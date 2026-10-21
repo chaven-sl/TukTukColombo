@@ -35,6 +35,21 @@ const LINE_WIDTH := 0.12
 @export var sample_spacing := 2.0
 @export var scenery_density := 1.0
 
+@export_group("Pedestrians")
+## Raised sidewalks behind the kerb (only where that edge is a KERB).
+@export var sidewalk_left := false
+@export var sidewalk_right := false
+@export var sidewalk_width := 2.5
+## Sidewalk omitted for this many metres at the start/end (e.g. tunnel mouths).
+@export var sidewalk_trim_start := 0.0
+@export var sidewalk_trim_end := 0.0
+## Pedestrian crossings: distance along the segment (m) and style per entry
+## (0 = designated zebra, 1 = uncontrolled / informal crossing point).
+@export var crossing_s := PackedFloat32Array()
+@export var crossing_styles := PackedInt32Array()
+
+enum CrossingStyle { DESIGNATED, UNCONTROLLED }
+
 
 # --- Chain interface ---
 
@@ -109,6 +124,48 @@ func half_width(s: float) -> float:
 	return carriageway_half(s) + shoulder_at(s)
 
 
+func has_sidewalk(side: float) -> bool:
+	if side < 0.0:
+		return sidewalk_left and edge_left == Edge.KERB
+	return sidewalk_right and edge_right == Edge.KERB
+
+
+## Lateral distance from the centre line to the walking line of a sidewalk.
+func sidewalk_offset(s: float) -> float:
+	return half_width(s) + KERB_WIDTH + sidewalk_width * 0.5
+
+
+## Outermost extent of the built road on a side (kerb/barrier/sidewalk included).
+func outer_extent(s: float, side: float) -> float:
+	if has_sidewalk(side):
+		return half_width(s) + KERB_WIDTH + sidewalk_width
+	return half_width(s) + KERB_WIDTH
+
+
+## Global walking-line points of a sidewalk (side −1 = left of travel).
+func sidewalk_points(side: float, spacing: float = 4.0) -> PackedVector3Array:
+	var pts := PackedVector3Array()
+	var s0 := sidewalk_trim_start
+	var s1 := length - sidewalk_trim_end
+	if s1 - s0 < 1.0:
+		return pts
+	var n := maxi(1, int(ceil((s1 - s0) / spacing)))
+	var xf := global_transform
+	for k in n + 1:
+		var s := lerpf(s0, s1, float(k) / float(n))
+		var p := xf * (local_center(s) + local_right(s) * (side * sidewalk_offset(s)))
+		p.y = KERB_HEIGHT
+		pts.append(p)
+	return pts
+
+
+## Global walking-line point of a sidewalk at distance s.
+func sidewalk_point(s: float, side: float) -> Vector3:
+	var p := global_transform * (local_center(s) + local_right(s) * (side * sidewalk_offset(s)))
+	p.y = KERB_HEIGHT
+	return p
+
+
 ## Signed lateral offset of a lane centre (positive = right of travel).
 func lane_offset(index: int, s: float, forward: bool) -> float:
 	var off := median_at(s) * 0.5 + (index + 0.5) * lane_width_at(s)
@@ -169,6 +226,8 @@ func build_geometry(materials: Dictionary) -> void:
 		var edge: Edge = edge_left if side < 0.0 else edge_right
 		if edge == Edge.KERB:
 			_build_kerb(edges, side)
+			if has_sidewalk(side):
+				_build_sidewalk(edges, side)
 			has_edges = true
 		elif edge == Edge.BARRIER:
 			_build_barrier(edges, side)
@@ -279,12 +338,43 @@ func _build_markings(material: Material) -> void:
 		else:
 			_strip(st, s0, s1, -0.13 - half_line * 0.7, -0.13 + half_line * 0.7, -0.13 - half_line * 0.7, -0.13 + half_line * 0.7, MARK_Y, white)
 			_strip(st, s0, s1, 0.13 - half_line * 0.7, 0.13 + half_line * 0.7, 0.13 - half_line * 0.7, 0.13 + half_line * 0.7, MARK_Y, white)
+	# Zebra stripes for designated pedestrian crossings.
+	for i in crossing_s.size():
+		var style := crossing_styles[i] if i < crossing_styles.size() else CrossingStyle.DESIGNATED
+		if style != CrossingStyle.DESIGNATED:
+			continue
+		var cs := crossing_s[i]
+		var half := carriageway_half(cs)
+		var o := -half + 0.3
+		while o < half - 0.3:
+			_strip(st, cs - 1.5, cs + 1.5, o, o + 0.5, o, o + 0.5, MARK_Y + 0.001, white)
+			o += 1.0
 	var mi := MeshInstance3D.new()
 	mi.name = "Markings"
 	mi.mesh = st.commit()
 	mi.material_override = material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+
+
+func _build_sidewalk(st: SurfaceTool, side: float) -> void:
+	var s_start := sidewalk_trim_start
+	var s_end := length - sidewalk_trim_end
+	if s_end - s_start < 1.0:
+		return
+	var steps := maxi(1, int(ceil((s_end - s_start) / 2.0)))
+	var paving := Color(0.68, 0.66, 0.62)
+	var paving_alt := Color(0.62, 0.6, 0.57)
+	for k in steps:
+		var s0 := lerpf(s_start, s_end, float(k) / float(steps))
+		var s1 := lerpf(s_start, s_end, float(k + 1) / float(steps))
+		var inner0 := half_width(s0) + KERB_WIDTH
+		var inner1 := half_width(s1) + KERB_WIDTH
+		var color := paving if k % 2 == 0 else paving_alt
+		_face(st, _p(s0, side, inner0, KERB_HEIGHT), _p(s1, side, inner1, KERB_HEIGHT),
+				_p(s1, side, inner1 + sidewalk_width, KERB_HEIGHT), _p(s0, side, inner0 + sidewalk_width, KERB_HEIGHT), color)
+		_face(st, _p(s0, side, inner0 + sidewalk_width, KERB_HEIGHT), _p(s1, side, inner1 + sidewalk_width, KERB_HEIGHT),
+				_p(s1, side, inner1 + sidewalk_width, 0.0), _p(s0, side, inner0 + sidewalk_width, 0.0), paving_alt)
 
 
 ## Point at distance s, lateral offset `o` (outward from centre on `side`), height h.
