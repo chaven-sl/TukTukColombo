@@ -9,3 +9,11 @@
 *.aab
 *.obb
 /research/
+
+# OS / editor junk
+.DS_Store
+*.tmp
+
+# Build output
+/build/
+/exports/
