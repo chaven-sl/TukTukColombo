@@ -45,6 +45,8 @@ run "Vehicle dynamics v0.01a (swerve / rollover / recovery)" --fixed-fps 60 res:
 run "Scoring scenarios" --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn
 run "Human world + passengers (real scene)" --fixed-fps 60 res://tests/scenarios/human_world_test.tscn
 run "Input smoke (real scene, InputMap actions)" --fixed-fps 60 res://tests/scenarios/input_smoke_test.tscn
+run "Mobile touch + lifecycle (real scene)" --fixed-fps 60 res://tests/scenarios/mobile_touch_test.tscn
+run "Mobile touch (forced touch controls)" --fixed-fps 60 res://tests/scenarios/mobile_touch_test.tscn -- --force-touch-controls
 run "Traffic + humans soak (6 min, driving)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360
 run "Traffic + humans soak (6 min, junction stress)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 --park-near-junction
 

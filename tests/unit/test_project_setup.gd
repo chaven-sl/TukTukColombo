@@ -22,7 +22,7 @@ func test_input_actions_exist_with_bindings() -> void:
 func test_fixed_stack_settings() -> void:
 	check_eq(ProjectSettings.get_setting("rendering/renderer/rendering_method"), "mobile", "Mobile renderer")
 	check_eq(ProjectSettings.get_setting("physics/3d/physics_engine"), "Jolt Physics", "Jolt physics")
-	check_eq(int(ProjectSettings.get_setting("display/window/handheld/orientation")), 0, "landscape")
+	check([0, 2, 4].has(int(ProjectSettings.get_setting("display/window/handheld/orientation"))), "landscape (landscape / reverse / sensor landscape)")
 
 
 func test_english_translations_complete() -> void:
