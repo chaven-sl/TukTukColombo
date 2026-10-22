@@ -17,3 +17,8 @@
 # Build output
 /build/
 /exports/
+
+# Android build output and generated Gradle project
+/builds/android/*
+!/builds/android/.gitkeep
+*.idsig
