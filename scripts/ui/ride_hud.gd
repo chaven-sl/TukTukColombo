@@ -20,7 +20,7 @@ var _result_label: Label
 var _result_timer := 0.0
 var _notice_timer := 0.0
 var _mood_timer := 0.0
-var _mood := 0.0
+var _mood_state: PassengerMood.Mood = PassengerMood.Mood.HAPPY
 var _pickup_beacons: Dictionary = {}  # PassengerOffer -> MeshInstance3D
 var _dest_beacon: MeshInstance3D
 
@@ -193,13 +193,13 @@ func _update_ride_panel(delta: float) -> void:
 	_mood_timer -= delta
 	if _mood_timer <= 0.0:
 		_mood_timer = 0.5
-		_mood = PassengerSatisfaction.evaluate(rides.telemetry, rides.offer.profile, rides.offer.route_m, rides.config).final_score
+		_mood_state = PassengerMood.evaluate(rides.telemetry, rides.offer.profile, rides.offer.route_m, rides.remaining_m, rides.config)
 	var t := rides.telemetry
 	var lines := PackedStringArray()
 	lines.append(tr(rides.offer.profile.display_name_key).to_upper())
 	lines.append("%s: %s" % [tr("UI_DESTINATION"), tr(rides.offer.destination.display_name_key)])
 	lines.append("%s: %s" % [tr("UI_REMAINING"), km(rides.remaining_m)])
-	lines.append("%s: %d%%" % [tr("UI_PASSENGER_MOOD"), roundi(_mood)])
+	lines.append("%s: %s" % [tr("UI_PASSENGER_MOOD"), tr(PassengerMood.KEYS[_mood_state])])
 	lines.append("%s: %d:%02d" % [tr("UI_RIDE_TIME"), int(t.elapsed) / 60, int(t.elapsed) % 60])
 	_ride_label.text = "\n".join(lines)
 

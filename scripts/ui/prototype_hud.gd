@@ -5,6 +5,8 @@ extends CanvasLayer
 ## All player-facing text goes through translation keys.
 
 const POPUP_COUNT := 4
+## Touch mode lifts the speed readout above the steering pad (logical units).
+const TOUCH_SPEED_LIFT := 180.0
 
 var player: TukController
 var scoring: ScoringSystem
@@ -22,6 +24,7 @@ var _popup_settings: LabelSettings
 var _gap_settings: LabelSettings
 var _loss_settings: LabelSettings
 var _combo_tween: Tween
+var _touch_layout := false
 
 
 func setup(p_player: TukController, p_scoring: ScoringSystem) -> void:
@@ -102,6 +105,25 @@ func _build() -> void:
 		popup.modulate.a = 0.0
 		root.add_child(popup)
 		_popups.append(popup)
+
+
+## Touch mode moves score right of the pause button and lifts the speed
+## readout above the steering pad.
+func set_touch_layout(on: bool) -> void:
+	if on == _touch_layout:
+		return
+	_touch_layout = on
+	_score_label.position.x = 120.0 if on else 28.0
+	# Bottom-anchored labels: shift their offsets, not position (absolute).
+	var sign := -1.0 if on else 1.0
+	# The number grows upwards from its offsets, so the unit lifts further to sit under it.
+	_shift(_speed_label, sign * TOUCH_SPEED_LIFT)
+	_shift(_speed_unit, sign * (TOUCH_SPEED_LIFT + 64.0))
+
+
+func _shift(c: Control, dy: float) -> void:
+	c.offset_top += dy
+	c.offset_bottom += dy
 
 
 func _process(_delta: float) -> void:

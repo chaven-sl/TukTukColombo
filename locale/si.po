@@ -191,3 +191,56 @@ msgstr ""
 
 msgid "REACT_ARRIVAL_POOR"
 msgstr ""
+
+# --- v0.03A mobile ---
+
+msgid "MOOD_HAPPY"
+msgstr ""
+
+msgid "MOOD_IMPATIENT"
+msgstr ""
+
+msgid "MOOD_NERVOUS"
+msgstr ""
+
+msgid "MOOD_EXCITED"
+msgstr ""
+
+msgid "MOOD_BORED"
+msgstr ""
+
+msgid "MOOD_UPSET"
+msgstr ""
+
+msgid "UI_TOUCH_GO"
+msgstr ""
+
+msgid "UI_TOUCH_BRAKE"
+msgstr ""
+
+msgid "UI_TOUCH_HORN"
+msgstr ""
+
+msgid "UI_TOUCH_PAUSE"
+msgstr ""
+
+msgid "UI_ACCEPT_RIDE_TOUCH"
+msgstr ""
+
+msgid "UI_RESUME"
+msgstr ""
+
+msgid "UI_DEV_TELEMETRY"
+msgstr ""
+
+msgid "UI_DEV_PERF_TEST"
+msgstr ""
+
+msgid "GRAPHICS_LOW"
+msgstr ""
+
+msgid "GRAPHICS_MEDIUM"
+msgstr ""
+
+msgid "GRAPHICS_HIGH"
+msgstr ""
