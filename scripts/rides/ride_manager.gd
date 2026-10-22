@@ -183,7 +183,8 @@ func _tick_active(delta: float) -> void:
 	_remaining_timer -= delta
 	if _remaining_timer <= 0.0:
 		_remaining_timer = 1.0
-		remaining_m = road.route_distance(player.global_position, offer.destination.global_position)
+		remaining_m = float(road.route(player.global_position, offer.destination.global_position,
+				-player.global_transform.basis.z)["distance"])
 	var to_dest := player.global_position.distance_to(offer.destination.global_position)
 	if to_dest <= config.arrive_radius and player.speed_kmh <= config.arrive_max_speed_kmh and not player.is_tipped:
 		set_state(RideState.ARRIVED)

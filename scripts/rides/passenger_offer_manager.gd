@@ -54,13 +54,13 @@ func _assign_destination(offer: PassengerOffer, preferred: PedestrianSpot) -> vo
 		for spot in options:
 			if spot == offer.destination:
 				continue
-			if road.route_distance(offer.pickup.global_position, spot.global_position) >= config.min_offer_route_m:
+			if float(road.route(offer.pickup.global_position, spot.global_position)["distance"]) >= config.min_offer_route_m:
 				valid.append(spot)
 		if valid.is_empty():
 			valid = options
 		chosen = valid[rng.randi() % valid.size()]
 	offer.destination = chosen
-	offer.route_m = road.route_distance(offer.pickup.global_position, chosen.global_position)
+	offer.route_m = float(road.route(offer.pickup.global_position, chosen.global_position)["distance"])
 
 
 func _spawn_passenger(offer: PassengerOffer) -> bool:

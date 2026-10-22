@@ -187,13 +187,62 @@ func find_reset_transform(position: Vector3) -> Transform3D:
 
 ## Shortest driving distance (m) between two points along the directed lane
 ## graph (Dijkstra over lanes; a few dozen lanes, so cheap enough at ~1 Hz).
-## Both ends snap to any ordinary lane within `radius`, either direction, so a
-## route may start with a U-turn. Falls back to 1.3 × straight-line distance.
+## Both ends snap to any ordinary lane within `radius`, either direction.
+## Kept for tools/tests; gameplay uses route(), which avoids U-turn starts.
 func route_distance(from_pos: Vector3, to_pos: Vector3, radius: float = 14.0) -> float:
-	var starts := _lanes_near(from_pos, radius)
-	var ends := _lanes_near(to_pos, radius)
+	return _shortest(_lanes_near(from_pos, radius), _lanes_near(to_pos, radius), from_pos, to_pos)
+
+
+## Route with a sensible start and end (v0.03A U-turn fix).
+## - `from_heading` given (e.g. the tuk's facing): start only on lanes running
+##   that way.
+## - otherwise (a kerbside pickup): start on the lane nearest the point — the
+##   kerb lane a tuk stops in — and its same-direction neighbours.
+## The destination always snaps to its kerb-side lane direction.
+## Falls back to the unrestricted search only if the directed one finds no
+## route (e.g. a dead-end street), and reports that in "restricted".
+func route(from_pos: Vector3, to_pos: Vector3, from_heading: Vector3 = Vector3.ZERO, radius: float = 14.0) -> Dictionary:
+	var all_starts := _lanes_near(from_pos, radius)
+	var all_ends := _lanes_near(to_pos, radius)
+	var starts := _directed(all_starts, from_pos, from_heading)
+	var ends := _directed(all_ends, to_pos, Vector3.ZERO)
+	var d := _shortest(starts, ends, from_pos, to_pos)
+	var restricted := true
+	if d == INF or starts.is_empty() or ends.is_empty():
+		d = _shortest(all_starts, all_ends, from_pos, to_pos)
+		restricted = false
+	var start_dir := Vector3.ZERO
+	if not starts.is_empty():
+		start_dir = (starts[0][0] as Lane).sample_tangent(float(starts[0][1]))
+	if d == INF:
+		d = from_pos.distance_to(to_pos) * 1.3
+	return {"distance": d, "restricted": restricted, "start_dir": start_dir}
+
+
+func _directed(candidates: Array, pos: Vector3, heading: Vector3) -> Array:
+	if candidates.is_empty():
+		return candidates
+	var reference := Vector3(heading.x, 0.0, heading.z)
+	if reference.length_squared() < 0.0001:
+		var nearest: Array = candidates[0]
+		var nearest_d := INF
+		for c in candidates:
+			var dd := (c[0] as Lane).sample_position(float(c[1])).distance_squared_to(pos)
+			if dd < nearest_d:
+				nearest_d = dd
+				nearest = c
+		reference = (nearest[0] as Lane).sample_tangent(float(nearest[1]))
+	reference = reference.normalized()
+	var out: Array = []
+	for c in candidates:
+		if (c[0] as Lane).sample_tangent(float(c[1])).dot(reference) > 0.3:
+			out.append(c)
+	return out
+
+
+func _shortest(starts: Array, ends: Array, from_pos: Vector3, to_pos: Vector3) -> float:
 	if starts.is_empty() or ends.is_empty():
-		return from_pos.distance_to(to_pos) * 1.3
+		return INF
 	var end_s: Dictionary = {}
 	for e in ends:
 		end_s[e[0]] = float(e[1])
@@ -228,8 +277,6 @@ func route_distance(from_pos: Vector3, to_pos: Vector3, radius: float = 14.0) ->
 			var nd := cur_d + cur.length
 			if nd < float(dist.get(succ, INF)):
 				dist[succ] = nd
-	if best == INF:
-		return from_pos.distance_to(to_pos) * 1.3
 	return best
 
 
