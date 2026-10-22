@@ -1,4 +1,4 @@
-# Architecture (v0.3 — Prototype v0.02)
+# Architecture (v0.4 — Prototype v0.03A)
 
 ## System map
 
@@ -71,6 +71,14 @@ Script defaults are the PROTOTYPE BASELINE; `.tres` files override only where an
 
 `Player Tuk → Passenger Profile → Fare/Mission → Traffic Skill → Passenger Satisfaction → Reward → Progression`.
 Skill events already carry clearance, relative speed, side and `is_oncoming`, which a future `PassengerSatisfaction` system can weight with `PassengerProfile` fields. A mission layer will sit beside `ScoringSystem` and subscribe to the same EventBus signals; nothing in v0.01 needs to change for that.
+
+## Mobile layer (v0.4)
+
+- **Input:** `InputMode` picks keyboard (`PlayerInputSource`) *or* touch (`TouchInputSource`) once at startup; both only write `VehicleInputState`. `MobileControls` (CanvasLayer) turns raw `InputEventScreenTouch/Drag` into a pure `TouchControlState`; layout is the pure `MobileLayout.compute()` against the display safe area. Taps reuse existing paths (`EventBus.horn_sounded`, `RideManager.request_accept()`, `GameState.set_paused()`). See `mobile_input.md`.
+- **Lifecycle:** `PauseController` owns Android Back (pause ↔ resume, never quit) and focus loss (pause, no auto-resume). `GameState` still flushes stats on app pause.
+- **Platform:** `GraphicsProfile` Resources (LOW/MEDIUM/HIGH) applied by the composition root. `SessionPerformanceMonitor` + `DevicePerfTest` (autopilot, fixed seeds) for device baselines. `AutopilotDriver` now lives in `scripts/debug/` so builds can run the perf test.
+- **Routes:** `RoadNetwork.route(from, to, heading)` is direction-aware (start lanes follow the heading or kerb lane; destination snaps to its kerb lane), falling back to the undirected search only when no legal route exists.
+- **Ride HUD:** in-ride mood is qualitative (`PassengerMood`: HAPPY / IMPATIENT / NERVOUS / EXCITED / BORED / UPSET) from projected subscores; the numeric rating stays on the result card only.
 
 ## Road construction
 

@@ -1,6 +1,6 @@
 # TukTuk Colombo — working instructions
 
-Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.02 — human world + passenger vertical slice** (complete, awaiting owner playtest). v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
+Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03A — Android + touch + production readiness** (complete, awaiting owner Android playtest). v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
 
 ## Repository identity
 
@@ -16,7 +16,7 @@ Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0
 
 ## Fixed stack (do not change without explicit approval)
 
-Godot **4.7.2 stable** · **GDScript** · **Mobile** renderer · **Jolt** physics · Android first (develop on macOS) · landscape · 3D stylised realism · low third-person chase camera. Never migrate to Unity/Unreal/C#/Forward+/Compatibility. No third-party plugins, vehicle packages, asset packs or SDKs.
+Godot **4.7.2 stable** · **GDScript** · **Mobile** renderer · **Jolt** physics · Android first (develop on macOS) · landscape · 3D stylised realism · low third-person chase camera. Never migrate to Unity/Unreal/C#/Forward+/Compatibility. No third-party plugins, vehicle packages, asset packs, input/joystick frameworks or SDKs.
 
 Godot CLI on this machine: `/Applications/Godot.app/Contents/MacOS/Godot` (also in `~/Downloads`). Not on `PATH`.
 
@@ -35,6 +35,11 @@ tools/run_tests.sh
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/human_world_test.tscn   # people + rides
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction]
+# Android (debug only; see docs/android_setup.md)
+tools/android_preflight.sh && tools/export_android_debug.sh   # → builds/android/tuktukcolombo-debug.apk (git-ignored)
+tools/install_android_debug.sh                                # needs an adb device; never uninstalls
+tools/android_perf_test.sh 300                                # 5-min deterministic device perf test
+# Touch on desktop: -- --force-touch-controls (or project setting tuktuk/dev/force_touch_controls)
 # Real window: FPS + screenshots to user://test_results/screens
 /Applications/Godot.app/Contents/MacOS/Godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]
 ```
@@ -53,6 +58,8 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 - **One satisfaction model.** Passengers differ only through `PassengerProfile` data; never add per-passenger scoring code.
 - **Pure logic is testable.** Rules live in RefCounted classes (`ComboManager`, `AdaptiveTrafficBudget`, `SaveStore`, `OrientedRect`, `VehicleTuning` helpers) with nodes as thin wrappers.
 - **Platform isolation.** Gameplay never calls SDKs; it calls `PlatformServices` (no-op in v0.01).
+- **One human input source.** Keyboard (`PlayerInputSource`) or touch (`TouchInputSource`), chosen once by `InputMode`; both only write `VehicleInputState`. Touch taps reuse existing paths (horn event, `RideManager.request_accept()`, `GameState.set_paused()`). Android Back pauses/resumes and never quits.
+- **Android signing.** Debug keystore only (per-machine editor setting). Never create/commit a release keystore or store signing config without explicit approval. Package `com.chavensl.tuktukcolombo` is provisional.
 - **Debuggable.** F1 overlay / F2 traffic / F3 vehicle; debug code lives in `scripts/debug/` and is removable.
 
 ## Directory rules
@@ -63,10 +70,12 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 | `data/<domain>/` | Resource **class** scripts (schemas) |
 | `resources/<domain>/` | Resource **instances** (`.tres`) |
 | `scenes/<domain>/` | scenes; a scene's root script may sit beside it |
-| `scripts/<domain>/` | runtime code: `player camera traffic road humans rides scoring performance ui debug utilities` |
+| `scripts/<domain>/` | runtime code: `player camera traffic road humans rides scoring performance ui input platform debug utilities` |
 | `locale/` | `en.po si.po ta.po` |
 | `tests/unit/` | headless logic tests (`test_*.gd`, extend `tests/test_case.gd`) |
-| `tests/scenarios/` | scene-based simulation tests; `tests/support/` test-only helpers (autopilot) |
+| `tests/scenarios/` | scene-based simulation tests (autopilot lives in `scripts/debug/` so the device perf test can use it) |
+| `tools/` | test runner and Android scripts (excluded from exports) |
+| `builds/android/` | local APK output — git-ignored, never committed |
 | `docs/` | design/technical docs and reports |
 | `assets/` | original placeholder assets only |
 
@@ -100,17 +109,17 @@ All speeds presented to people — docs, reports, test output, debug HUD, tuning
 
 ## Current phase & next step
 
-Delivered: v0.01 (`docs/PROTOTYPE_V001_REPORT.md`), v0.01a (`docs/PROTOTYPE_V001A_REPORT.md`), v0.02 (`docs/PROTOTYPE_V002_REPORT.md`). **Next: owner playtest answering the 10 experiential questions in the v0.02 report.** Do not start v0.03 (touch controls, audio, art, economy, more passengers) without that review.
+Delivered: v0.01, v0.01a, v0.02 (approved), v0.03A (`docs/PROTOTYPE_V003A_REPORT.md`). **Next: owner installs the debug APK on an Android phone and answers the 12 questions in the v0.03A report; real-device perf baseline is pending.** Do not start v0.03B (art, audio, garage, upgrades, more passengers, weather, map expansion) without that review.
 
 ## Known technical debt
 
 - Road geometry is generated at runtime (not `@tool`), so `test_track.tscn` looks empty in the editor.
 - Hand-written `.tscn/.tres` without UIDs (Godot adds them when re-saved in the editor).
 - Traffic: no lane changes; treats the player as an obstacle only in a straight line ahead; kinematic traffic can shove the player; yields only to occupied crossings.
-- Pedestrians: placeholder figures, no animation; uneven density (no sidewalks on the loop's east side); route estimates may imply a U-turn at pickup.
-- Android toolchain not configured on this Mac (no templates/SDK/JDK).
+- Pedestrians: placeholder figures, no animation; uneven density (no sidewalks on the loop's east side). Pickups now face legal directions, so some quoted routes are long laps (e.g. careful passenger 0.9–1.2 km).
+- Android: debug APK only (80 MB, mostly the debug engine library); no device tested yet; graphics tier not auto-selected per device; no haptics; touch steering unvalidated by a human thumb.
 - Near-miss footprint is the 1.3 × 2.6 m bounding box while physics uses a tapered hull (nose passes scored slightly conservatively).
 - Roll-state signal (`TukController.roll_state_changed`) has no player-facing feedback yet.
 - Sinhala/Tamil: no shipped font with those glyphs; strings are placeholders needing native review.
-- Performance numbers are from an Apple M2 only; no Android measurement yet.
+- Performance numbers are from an Apple M2 only; real-device baseline pending (`tools/android_perf_test.sh`).
 - HUD built in code rather than in an editable scene.

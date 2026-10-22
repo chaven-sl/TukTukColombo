@@ -18,6 +18,7 @@ Set `GODOT=/path/to/Godot` if the binary is not at `/Applications/Godot.app/Cont
 | Scoring | `--headless --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn` | close call, extremely close non-contact pass, clearance/speed rejections, tight gap (tight and looser), lane-spacing negative, combo ×1→×3, collision → no award + reset |
 | Human world + passengers (v0.02) | `… res://tests/scenarios/human_world_test.tscn` | sidewalk walking, crossing wait/proceed, reaction to the tuk, people never score CLOSE CALL/TIGHT GAP, pedestrian impact (event, combo reset, removal), full ride loop for all three passengers (offer, accept, boarding, telemetry, completion + fare, exit, pool return, offer respawn), drive-by pickup refusal, impact fails an active ride |
 | Input smoke | `… res://tests/scenarios/input_smoke_test.tscn` | real prototype scene driven through InputMap actions: W/A/D/S, reverse, R, H, F1/F2/F3, Esc pause/resume |
+| Mobile touch + lifecycle (v0.03A) | `… res://tests/scenarios/mobile_touch_test.tscn` (and `-- --force-touch-controls`) | desktop default = keyboard, touch HUD hidden; one input source at a time; injected multitouch steer+GO / steer+BRAKE moves the real tuk; quick reversal; horn/pause/accept taps; Android Back pause↔resume, never quits; focus loss pauses, cancels touches, no auto-resume, ride untouched; route-direction regression for every offer × destination |
 | Traffic soak (drive) | `… traffic_soak_test.tscn -- --duration=360` | autopilot laps through traffic: pool/node leaks, bounded population, no visible spawns, no teleports, no traffic overlap, junction service, bounded signal waits, speed variety, natural close calls, collision rate |
 | Traffic soak (junction) | `… -- --duration=360 --park-near-junction` | player parked beside the junction: throughput, no stalls/deadlock |
 
@@ -25,7 +26,11 @@ Results also go to `user://test_results/*.json` (macOS: `~/Library/Application S
 
 Windowed runs (`godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]`) add FPS, CPU-time and draw-call figures and save screenshots.
 
-## Latest results (2026-10-21, Apple M2, after v0.02)
+## Latest results (2026-10-22, Apple M2, after v0.03A)
+
+All 10 stages pass — unit **80 tests / 765 assertions** (new: touch mapper + multitouch state, layout on 5 aspect ratios × 4 safe areas, export preset, mobile settings, graphics profiles, mood); mobile touch both modes PASS; v0.01–v0.02 stages unchanged and passing. Windowed-only extras: `tests/scenarios/touch_layout_screens.tscn` with `--resolution WxH` saves forced-touch screenshots; `godot --path . -- --perf-test=20` runs the device perf test on desktop. See `docs/PROTOTYPE_V003A_REPORT.md`.
+
+## After v0.02 (2026-10-21)
 
 All 8 stages pass — see `docs/PROTOTYPE_V002_REPORT.md` (unit 61 tests / 545 assertions incl. same-drive passenger tests, pedestrian-danger fuzz, save v1→v2; human world PASS; both soaks now also check the human pool, transitions, crossing deadlocks and stranding).
 
