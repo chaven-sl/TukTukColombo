@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=3]
+[gd_scene load_steps=40 format=3]
 
 [ext_resource type="Script" path="res://scenes/prototype/prototype_main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/road/test_track.tscn" id="2_track"]
@@ -29,6 +29,14 @@
 [ext_resource type="Resource" path="res://resources/passengers/thrill_seeker.tres" id="27_thrill"]
 [ext_resource type="Script" path="res://scripts/rides/ride_manager.gd" id="28_rides"]
 [ext_resource type="Script" path="res://scripts/ui/ride_hud.gd" id="29_ridehud"]
+[ext_resource type="Script" path="res://scripts/ui/mobile_controls.gd" id="30_mobile"]
+[ext_resource type="Resource" path="res://resources/input/touch_controls.tres" id="31_touchcfg"]
+[ext_resource type="Script" path="res://scripts/input/touch_input_source.gd" id="32_touchsrc"]
+[ext_resource type="Script" path="res://scripts/performance/session_performance_monitor.gd" id="33_perfmon"]
+[ext_resource type="Script" path="res://scripts/performance/device_perf_test.gd" id="34_perftest"]
+[ext_resource type="Resource" path="res://resources/platform/graphics_low.tres" id="35_gfxlow"]
+[ext_resource type="Resource" path="res://resources/platform/graphics_medium.tres" id="36_gfxmed"]
+[ext_resource type="Resource" path="res://resources/platform/graphics_high.tres" id="37_gfxhigh"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
@@ -44,6 +52,7 @@ fog_sky_affect = 0.0
 
 [node name="PrototypeMain" type="Node3D"]
 script = ExtResource("1_main")
+graphics_profiles = Array[Resource]([ExtResource("35_gfxlow"), ExtResource("36_gfxmed"), ExtResource("37_gfxhigh")])
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_main")
@@ -104,3 +113,16 @@ config = ExtResource("23_ridecfg")
 
 [node name="RideHud" type="CanvasLayer" parent="."]
 script = ExtResource("29_ridehud")
+
+[node name="MobileControls" type="CanvasLayer" parent="."]
+script = ExtResource("30_mobile")
+config = ExtResource("31_touchcfg")
+
+[node name="TouchInput" type="Node" parent="."]
+script = ExtResource("32_touchsrc")
+
+[node name="PerformanceMonitor" type="Node" parent="."]
+script = ExtResource("33_perfmon")
+
+[node name="DevicePerfTest" type="Node" parent="."]
+script = ExtResource("34_perftest")
