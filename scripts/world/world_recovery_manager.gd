@@ -70,6 +70,7 @@ func _physics_process_body(delta: float) -> void:
 	var outside := not network.district_rect.grow(3.0).has_point(Vector2(p.x, p.z))
 	if p.y < -4.0 or outside:
 		stats_failsafe += 1
+		print("[WorldRecovery] failsafe at %s (outside district: %s)" % [p, outside])
 		recover("void")
 
 

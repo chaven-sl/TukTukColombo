@@ -126,6 +126,13 @@ func _clear_staged() -> void:
 		a.remove_meta("staged")
 
 
+func _rlane(seg_name: String) -> Lane:
+	for l in road.lanes:
+		if l.source_name == seg_name and not l.is_forward:
+			return l
+	return null
+
+
 func _place_player(seg_name: String, s: float, lane_index: int) -> void:
 	var lane := _lane(seg_name, lane_index)
 	var i := clampi(lane.cumulative.bsearch(s), 1, lane.points.size() - 1)
@@ -149,15 +156,19 @@ func _gates() -> void:
 	await _shot("v003b_gate_a_hero_road")
 	_clear_staged()
 	_release_people()
-	# B. Market chaos: dense stalls, umbrellas, people, tuks, a van, bikes.
-	var m0 := _lane("MarketApproach", 0)
-	var m1 := _lane("MarketApproach", 1)
-	_place_player("MarketApproach", 30.0, 1 if m1 != null else 0)
-	_stage(TrafficVehicleClass.Kind.TUK, 2, m0, 40.0, 8.0)
-	_stage(TrafficVehicleClass.Kind.VAN, 0, m1 if m1 != null else m0, 52.0, 6.0)
-	_stage(TrafficVehicleClass.Kind.MOTORCYCLE, 1, m0, 46.0, 10.0)
-	_stage(TrafficVehicleClass.Kind.TUK, 3, m0, 64.0, 8.0)
-	_people(18, 4.0, 34.0)
+	# B. Market chaos (v0.03B1.1): the narrowed two-way market road — hero in
+	# its lane, oncoming tuk + motorcycle, a van ahead, loading bay activity.
+	_place_player("MarketCoreA", 22.0, 0)
+	var fwd_core := _lane("MarketCoreA", 0)
+	var fwd_bay := _lane("MarketBay", 0)
+	var rev_bay := _rlane("MarketBay")
+	var rev_a := _rlane("MarketCoreA")
+	_stage(TrafficVehicleClass.Kind.TUK, 2, rev_bay, 12.0, 14.0)
+	_stage(TrafficVehicleClass.Kind.MOTORCYCLE, 1, rev_a, 2.0, 18.0)
+	_stage(TrafficVehicleClass.Kind.VAN, 0, fwd_bay, 14.0, 8.0)
+	_stage(TrafficVehicleClass.Kind.MOTORCYCLE, 3, fwd_core, 30.0, 12.0)
+	_stage(TrafficVehicleClass.Kind.TUK, 4, _rlane("MarketCoreB"), 30.0, 12.0)
+	_people(18, 3.0, 34.0)
 	await _frames(12)
 	await _shot("v003b_gate_b_market_chaos")
 	_clear_staged()

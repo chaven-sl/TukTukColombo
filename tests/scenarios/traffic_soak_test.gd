@@ -35,6 +35,9 @@ var _hire_phase := 0
 var _hire_timer := 20.0
 var _hire_offer: PassengerOffer = null
 var _hire_index := 0
+## v0.03B1.1: skill events while the tuk is in the narrowed market core.
+var _market_skill := {"close_call": 0, "tight_gap": 0, "market_seconds": 0.0}
+var _market_samples := PackedVector3Array()
 var _hire := {"attempted": 0, "accepted": 0, "boarded": 0, "completed": 0, "failed": 0, "aborted": 0, "gps_plans": 0, "gps_invalid": 0}
 var _offroad_timer := 6.0
 var _offroad_index := 0
@@ -175,7 +178,24 @@ func _on_spawned(agent: TrafficAgent) -> void:
 	_target_speeds.append(agent.target_speed * 3.6)
 
 
+func _in_market() -> bool:
+	if _market_samples.is_empty():
+		for seg in network.segments:
+			if String(seg.name).begins_with("MarketCore") or String(seg.name).begins_with("MarketBay"):
+				var k := 0.0
+				while k <= seg.length:
+					_market_samples.append(seg.global_transform * seg.local_center(k))
+					k += 4.0
+	var p := player.global_position
+	for q in _market_samples:
+		if Vector2(q.x - p.x, q.z - p.z).length() < 6.0:
+			return true
+	return false
+
+
 func _on_skill(event: SkillEvent) -> void:
+	if fort_pettah and _in_market():
+		_market_skill["tight_gap" if event.type == SkillEvent.Type.TIGHT_GAP else "close_call"] = int(_market_skill["tight_gap" if event.type == SkillEvent.Type.TIGHT_GAP else "close_call"]) + 1
 	if event.type == SkillEvent.Type.TIGHT_GAP:
 		_counts["tight_gap"] = int(_counts["tight_gap"]) + 1
 	else:
@@ -225,6 +245,8 @@ func _physics_process(delta: float) -> void:
 	if _sample_timer <= 0.0:
 		_sample_timer = 1.0
 		_sample()
+		if fort_pettah and _in_market():
+			_market_skill["market_seconds"] = float(_market_skill["market_seconds"]) + 1.0
 	if _t >= duration:
 		_finish()
 
@@ -308,7 +330,29 @@ func _drive_offroad(delta: float) -> void:
 				body = main.get_node("DistrictArt/BuildingProxies")  # crash into a shop-house
 			var shape := body.get_child(_offroad_index % body.get_child_count()) as CollisionShape3D
 			var out := -shape.global_transform.basis.z
-			_launch_soak(shape.global_position - out * 16.0, out, 45.0 if _episode_kind == 2 else 24.0)
+			if fort_pettah and _episode_kind == 2:
+				# Narrow streets (v0.03B1.1 market ≈ 12 m wall to wall): a fixed
+				# 16 m run-up would start inside the opposite building. Launch
+				# from the nearest legal lane, aimed at the building.
+				var lane_pos := network.find_reset_transform(shape.global_position).origin
+				var aim := shape.global_position - lane_pos
+				aim.y = 0.0
+				_launch_soak(lane_pos, aim.normalized(), 45.0)
+			else:
+				# Always run up from INSIDE the district: wall pieces face either
+				# way, and corner pieces may have no inside run-up at all.
+				var inside := network.district_rect.grow(-2.0)
+				var from := shape.global_position - out * 16.0
+				var tries := 0
+				while not inside.has_point(Vector2(from.x, from.z)) and tries < body.get_child_count() * 2:
+					if tries % 2 == 0:
+						out = -out
+					else:
+						shape = body.get_child((_offroad_index + tries) % body.get_child_count()) as CollisionShape3D
+						out = -shape.global_transform.basis.z
+					from = shape.global_position - out * 16.0
+					tries += 1
+				_launch_soak(from, out, 45.0 if _episode_kind == 2 else 24.0)
 			_offroad["crashes" if _episode_kind == 2 else "hard"] = int(_offroad["crashes" if _episode_kind == 2 else "hard"]) + 1
 			_episode_left = 2.0
 
@@ -764,6 +808,8 @@ func _finish() -> void:
 				"max_drivers": _max_drivers, "max_held": _max_held, "max_hold_s": snappedf(_max_hold_s, 0.1)}
 		print("[Soak] incidents %s" % JSON.stringify(_report["incidents"]))
 	if fort_pettah:
+		_report["market_skill"] = _market_skill
+		print("[Soak] market %s" % JSON.stringify(_market_skill))
 		_report["hires"] = _hire
 		print("[Soak] hires %s" % JSON.stringify(_hire))
 		_expect("hires attempted (>= 4)", int(_hire["attempted"]) >= 4, str(_hire["attempted"]))
