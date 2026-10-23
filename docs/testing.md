@@ -30,6 +30,10 @@ Results also go to `user://test_results/*.json` (macOS: `~/Library/Application S
 
 Windowed runs (`godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]`) add FPS, CPU-time and draw-call figures and save screenshots.
 
+## After v0.03B1.1 (2026-10-23, Apple M2)
+
+All **19 stages** pass (new: `market_compression_test`, 38 checks — narrowed market geometry, junction-arbitrated lane reduction, routing, resets, pedestrian network, 150 s live two-way traffic, 120 s market skill laps). The Fort–Pettah soak's scripted building and wall episodes now always run up from a legal lane or from inside the district.
+
 ## After v0.03B1 (2026-10-23, Apple M2)
 
 All **18 stages** pass. Unit: **98 tests / 960 assertions** (new `test_graphics_runtime`: the docs must quote the `.tres` values). The Fort–Pettah slice test has 60 checks (new: hero v2 budget and materials, the fork steers, the background crowd stays inside buildings and off lanes, blade signs, compact HUD cards). The HUD safe-area matrix fills the new structured cards. Device: `tools/android_perf_test.sh 180 [opts]` reports render CPU/GPU, primitives, video memory and per-system `PerfSections` timings; see `docs/PROTOTYPE_V003B1_REPORT.md`.
