@@ -20,6 +20,8 @@ extends Node3D
 @onready var touch_input: TouchInputSource = $TouchInput
 @onready var perf_monitor: SessionPerformanceMonitor = $PerformanceMonitor
 @onready var perf_test: DevicePerfTest = $DevicePerfTest
+@onready var guidance: RouteGuidance = $RouteGuidance
+@onready var incidents: TrafficIncidentManager = $TrafficIncidentManager
 
 ## LOW, MEDIUM, HIGH (indexed by GraphicsProfile.Tier).
 @export var graphics_profiles: Array[Resource] = []
@@ -27,6 +29,7 @@ extends Node3D
 ## Fixed seeds for deterministic tests (0 = random).
 var human_seed := 0
 var offer_seed := 0
+var incident_seed := 0
 ## Touch or keyboard, decided once at startup (InputMode).
 var touch_mode := false
 var graphics_tier: GraphicsProfile.Tier = GraphicsProfile.Tier.HIGH
@@ -53,9 +56,12 @@ func _ready() -> void:
 	offers.setup(pedestrians, network, humans, offer_seed)
 	rides.setup(player, offers, humans, network, scoring)
 	hud.setup(player, scoring)
-	ride_hud.setup(rides, offers, self)
+	guidance.setup(rides, network, player)
+	incidents.setup(traffic, humans, player, incident_seed)
+	ride_hud.setup(rides, offers, self, guidance)
 	debug_overlay.setup(player, traffic, network, scoring, near_miss)
 	debug_overlay.setup_world(humans, rides, pedestrians)
+	debug_overlay.setup_v003a1(guidance, incidents, mobile_controls.state)
 	_setup_platform()
 	GameState.reset_session()
 	if perf_seconds > 0.0:
@@ -86,6 +92,7 @@ func set_touch_mode(on: bool) -> void:
 	touch_input.enabled = on
 	mobile_controls.set_active(on)
 	hud.set_touch_layout(on)
+	ride_hud.touch_mode = on
 	pause.set_keyboard_hints(not on)
 
 
@@ -115,3 +122,4 @@ func _use_fixed_seeds() -> void:
 	traffic.rng_seed = 7
 	human_seed = 7
 	offer_seed = 7
+	incident_seed = 7

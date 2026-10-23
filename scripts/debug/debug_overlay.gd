@@ -22,6 +22,9 @@ var _near_miss: NearMissDetector
 var _humans: HumanManager
 var _rides: RideManager
 var _pedestrians: PedestrianNetwork
+var _guidance: RouteGuidance
+var _incidents: TrafficIncidentManager
+var _touch: TouchControlState
 
 
 func setup(player: TukController, traffic: TrafficManager, network: RoadNetwork,
@@ -50,6 +53,12 @@ func setup_world(humans: HumanManager, rides: RideManager, pedestrians: Pedestri
 	_rides = rides
 	_pedestrians = pedestrians
 	_apply_flags()
+
+
+func setup_v003a1(guidance: RouteGuidance, incidents: TrafficIncidentManager, touch: TouchControlState) -> void:
+	_guidance = guidance
+	_incidents = incidents
+	_touch = touch
 
 
 func _ready() -> void:
@@ -184,6 +193,35 @@ func _compose_text() -> String:
 		lines.append("  crossings started %d done %d abandoned %d   reactions %d   pedestrian danger %d   impacts %d" % [
 				_humans.stats_crossings_started, _humans.stats_crossings_completed, _humans.stats_crossings_abandoned,
 				_humans.stats_reactions, _humans.stats_danger_events, _humans.stats_impacts])
+	if _touch != null:
+		lines.append("")
+		lines.append("TOUCH")
+		lines.append("  steering %s   origin x %.0f   delta %+.1f   output %+.2f" % [
+				"held" if _touch.is_steering() else "free", _touch.steer_origin_x, _touch.steer_delta, _touch.steer])
+	if _guidance != null:
+		lines.append("")
+		lines.append("ROUTE")
+		var plan_len := _guidance.plan.length() if _guidance.plan != null else 0.0
+		lines.append("  phase %s   length %.0f m   progress %.0f m   remaining %.0f m   lateral %.1f m" % [
+				_guidance.phase_name(), plan_len, _guidance.progress, _guidance.remaining_m, _guidance.lateral])
+		lines.append("  next: %s   off-route %s   recalcs %d (suppressed %d, off-route events %d)" % [
+				_guidance.instruction_text(), _guidance.off_route, _guidance.recalc_count, _guidance.suppressed_recalcs, _guidance.off_route_events])
+	if _incidents != null:
+		lines.append("")
+		lines.append("INCIDENT")
+		if _incidents.is_active():
+			var ev := _incidents.last_event
+			lines.append("  phase %s  %.1f s   tier %s   %s %.0f km/h   agent #%d   temperament %s   driver %s" % [
+					_incidents.phase_name(), _incidents.elapsed, IncidentRules.Tier.keys()[_incidents.tier],
+					CollisionEvent.Severity.keys()[ev.severity] if ev != null else "-", ev.impact_speed_kmh() if ev != null else 0.0,
+					_incidents.agent.agent_id if _incidents.agent != null else -1,
+					_incidents.temperament.id if _incidents.temperament != null else &"-",
+					HumanAgent.State.keys()[_incidents.driver.state] if _incidents.driver != null else "in vehicle"])
+		else:
+			lines.append("  none")
+		lines.append("  light %d  altercations %d  exits %d  suppressed %d  follower horns %d  timeouts %d  world ignored %d" % [
+				_incidents.stats_light, _incidents.stats_altercations, _incidents.stats_driver_exits, _incidents.stats_suppressed,
+				_incidents.stats_follower_horns, _incidents.stats_timeouts, _incidents.stats_ignored_world])
 	lines.append("")
 	lines.append("F1 overlay  F2 traffic  F3 vehicle  F4 humans  E accept ride  R reset  Esc pause")
 	return "\n".join(lines)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=40 format=3]
+[gd_scene load_steps=45 format=3]
 
 [ext_resource type="Script" path="res://scenes/prototype/prototype_main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/road/test_track.tscn" id="2_track"]
@@ -37,6 +37,11 @@
 [ext_resource type="Resource" path="res://resources/platform/graphics_low.tres" id="35_gfxlow"]
 [ext_resource type="Resource" path="res://resources/platform/graphics_medium.tres" id="36_gfxmed"]
 [ext_resource type="Resource" path="res://resources/platform/graphics_high.tres" id="37_gfxhigh"]
+[ext_resource type="Script" path="res://scripts/navigation/route_guidance.gd" id="38_gps"]
+[ext_resource type="Resource" path="res://resources/navigation/route_guidance.tres" id="39_gpscfg"]
+[ext_resource type="Script" path="res://scripts/traffic/traffic_incident_manager.gd" id="40_incidents"]
+[ext_resource type="Resource" path="res://resources/traffic/incident_config.tres" id="41_inccfg"]
+[ext_resource type="Script" path="res://scripts/ui/incident_bubbles.gd" id="42_bubbles"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
@@ -126,3 +131,14 @@ script = ExtResource("33_perfmon")
 
 [node name="DevicePerfTest" type="Node" parent="."]
 script = ExtResource("34_perftest")
+
+[node name="RouteGuidance" type="Node3D" parent="."]
+script = ExtResource("38_gps")
+config = ExtResource("39_gpscfg")
+
+[node name="TrafficIncidentManager" type="Node" parent="."]
+script = ExtResource("40_incidents")
+config = ExtResource("41_inccfg")
+
+[node name="IncidentBubbles" type="Node3D" parent="."]
+script = ExtResource("42_bubbles")
