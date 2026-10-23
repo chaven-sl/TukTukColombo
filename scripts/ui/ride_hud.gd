@@ -19,9 +19,22 @@ var guidance: RouteGuidance
 var touch_mode := false
 
 var _offer_panel: PanelContainer
+## v0.03B1 compact hierarchy: headline (passenger type), route line,
+## distance + priority chip, small accept hint.
 var _offer_label: Label
+var _offer_route: Label
+var _offer_dist: Label
+var _offer_chip: PanelContainer
+var _offer_chip_label: Label
+var _offer_hint: Label
 var _ride_panel: PanelContainer
+## Ride card: passenger, → destination, remaining + mood chip, small timer.
 var _ride_label: Label
+var _ride_dest: Label
+var _ride_dist: Label
+var _ride_chip: PanelContainer
+var _ride_chip_label: Label
+var _ride_time: Label
 var _bubble: Label
 ## HUD root inside the safe area (v0.03A2).
 var safe_root: HudSafeArea
@@ -69,18 +82,46 @@ func _ready() -> void:
 	add_child(safe_root)
 	var root: Control = safe_root
 	_offer_panel = _panel(root)
-	_offer_label = _label(_offer_panel, 21)
+	var ov := _vbox(_offer_panel)
+	_offer_label = _label(ov, 20)
+	_offer_label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.4))
+	_offer_route = _label(ov, 15)
+	_offer_route.add_theme_color_override("font_color", Color(0.86, 0.88, 0.9))
+	var orow := HBoxContainer.new()
+	orow.add_theme_constant_override("separation", 10)
+	ov.add_child(orow)
+	_offer_dist = _label(orow, 18)
+	_offer_dist.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_offer_chip = _chip(orow)
+	_offer_chip_label = _offer_chip.get_child(0) as Label
+	_offer_hint = _label(ov, 13)
+	_offer_hint.add_theme_color_override("font_color", Color(0.7, 0.72, 0.74))
 	_gps_panel = _panel(root)
-	_gps_label = _label(_gps_panel, 30)
+	_gps_label = _label(_gps_panel, 24)
 	_gps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	(_gps_panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Color(0.02, 0.18, 0.28, 0.82)
 	_ride_panel = _panel(root)
-	_ride_label = _label(_ride_panel, 20)
+	var rv := _vbox(_ride_panel)
+	_ride_label = _label(rv, 17)
+	_ride_label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.4))
+	_ride_dest = _label(rv, 15)
+	var rrow := HBoxContainer.new()
+	rrow.add_theme_constant_override("separation", 10)
+	rv.add_child(rrow)
+	_ride_dist = _label(rrow, 18)
+	_ride_dist.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_ride_chip = _chip(rrow)
+	_ride_chip_label = _ride_chip.get_child(0) as Label
+	_ride_time = _label(rv, 12)
+	_ride_time.add_theme_color_override("font_color", Color(0.65, 0.67, 0.7))
 	_result_panel = _panel(root)
 	_result_label = _label(_result_panel, 22)
 	_result_label.max_lines_visible = 16
-	_offer_label.max_lines_visible = 7  # key facts first; long names wrap, never reach the speed readout
-	_ride_label.max_lines_visible = 8
+	_offer_label.max_lines_visible = 2  # compact card: long names wrap to 2 lines, never reach the speed readout
+	_offer_route.max_lines_visible = 2
+	_offer_hint.max_lines_visible = 1
+	_ride_dest.max_lines_visible = 2
+	_ride_label.max_lines_visible = 2
 	_bubble = Label.new()
 	_bubble.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -101,7 +142,7 @@ func _ready() -> void:
 ## safe areas so nothing reaches the screen edge.
 func layout() -> void:
 	var w := safe_root.size.x
-	var card := minf(400.0, w * 0.36)
+	var card := minf(310.0, w * 0.28)  # v0.03B1: compact cards, more road visible
 	PrototypeHud.place(_offer_panel, Vector2.ZERO, Rect2(0, 76, card, 0))  # under score and the touch pause button
 	var gps := minf(440.0, w - 2.0 * card - 24.0)
 	PrototypeHud.place(_gps_panel, Vector2(0.5, 0.0), Rect2(-gps * 0.5, 0, gps, 0))
@@ -111,7 +152,9 @@ func layout() -> void:
 	PrototypeHud.place(_result_panel, Vector2(1.0, 0.0), Rect2(-card, 0, card, 0))
 	# Passenger line: centre column near the bottom, between the steering pad
 	# and the pedals, below the banners.
-	var bubble := clampf(w - 2.0 * card - 32.0, 260.0, 700.0)
+	# The bubble keeps its v0.03A2 width reservation (clear of the touch
+	# steering pad and pedals), independent of the narrower cards.
+	var bubble := clampf(w - 2.0 * minf(400.0, w * 0.36) - 32.0, 260.0, 700.0)
 	PrototypeHud.place(_bubble, Vector2(0.5, 1.0), Rect2(-bubble * 0.5, -196, bubble, 40))
 
 
@@ -127,15 +170,57 @@ func _settings(size: int, color: Color) -> LabelSettings:
 func _panel(parent: Control) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.07, 0.08, 0.72)
+	style.bg_color = Color(0.05, 0.06, 0.07, 0.6)
 	style.set_corner_radius_all(10)
 	style.border_width_bottom = 2
-	style.border_color = Color(0.1, 0.62, 0.62, 0.9)  # v0.03B teal accent
-	style.set_content_margin_all(12)
+	style.border_color = Color(0.1, 0.62, 0.62, 0.85)  # v0.03B teal accent
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 8
+	style.content_margin_bottom = 9
 	panel.add_theme_stylebox_override("panel", style)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(panel)
 	return panel
+
+
+func _vbox(parent: Control) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(v)
+	return v
+
+
+## Small rounded status chip (priority / mood).
+func _chip(parent: Control) -> PanelContainer:
+	var chip := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.2, 0.6, 0.35)
+	st.set_corner_radius_all(8)
+	st.content_margin_left = 8
+	st.content_margin_right = 8
+	st.content_margin_top = 1
+	st.content_margin_bottom = 2
+	chip.add_theme_stylebox_override("panel", st)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := Label.new()
+	l.add_theme_font_size_override("font_size", 13)
+	l.add_theme_color_override("font_color", Color(1, 1, 1))
+	chip.add_child(l)
+	parent.add_child(chip)
+	return chip
+
+
+func _set_chip(chip: PanelContainer, label: Label, text: String, color: Color) -> void:
+	label.text = text
+	(chip.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = color
+	chip.visible = not text.is_empty()
+
+
+const PRIORITY_COLORS := {"PRIORITY_SAFE": Color(0.18, 0.55, 0.32), "PRIORITY_FAST": Color(0.8, 0.45, 0.1), "PRIORITY_EXCITING": Color(0.7, 0.2, 0.55)}
+const MOOD_COLORS := [Color(0.18, 0.55, 0.32), Color(0.8, 0.55, 0.1), Color(0.75, 0.5, 0.15), Color(0.15, 0.55, 0.7), Color(0.4, 0.42, 0.45), Color(0.75, 0.18, 0.15)]
 
 
 func _label(parent: Control, size: int) -> Label:
@@ -268,25 +353,32 @@ func _update_pickup_tag(selected: PassengerOffer) -> void:
 
 func _update_offer_panel() -> void:
 	var offer := rides.nearby_offer
-	var lines := PackedStringArray()
+	var show := false
+	_offer_route.visible = true
+	_offer_hint.visible = false
 	match rides.state:
 		RideManager.RideState.NO_RIDE:
 			if offer != null:
-				lines.append(tr("UI_HIRE_AVAILABLE"))
-				lines.append(tr(offer.profile.display_name_key).to_upper())
-				lines.append("%s: %s" % [tr("UI_PICKUP"), tr(offer.pickup.display_name_key)])
-				lines.append("%s: %s" % [tr("UI_DESTINATION"), tr(offer.destination.display_name_key)])
-				lines.append("%s: %s" % [tr("UI_TRIP"), km(offer.route_m)])
-				lines.append("%s: %s" % [tr("UI_PRIORITY"), tr(offer.profile.priority_key)])
+				show = true
+				_offer_label.text = tr(offer.profile.display_name_key).to_upper()
+				_offer_route.text = "%s → %s" % [tr(offer.pickup.display_name_key), tr(offer.destination.display_name_key)]
+				_offer_dist.text = km(offer.route_m)
+				_set_chip(_offer_chip, _offer_chip_label, tr(offer.profile.priority_key), PRIORITY_COLORS.get(offer.profile.priority_key, Color(0.3, 0.35, 0.4)))
+				_offer_dist.get_parent().visible = true
 				if not touch_mode:
-					lines.append(tr("UI_ACCEPT_HIRE") % interact_key_label())
+					_offer_hint.visible = true
+					_offer_hint.text = tr("UI_ACCEPT_HIRE") % interact_key_label()
 		RideManager.RideState.EN_ROUTE_TO_PICKUP:
-			lines.append(tr("UI_PICKUP_HINT") % tr(rides.offer.profile.display_name_key))
-			lines.append("%s: %s" % [tr("UI_PICKUP"), tr(rides.offer.pickup.display_name_key)])
+			show = true
+			_offer_label.text = tr("UI_PICKUP_HINT") % tr(rides.offer.profile.display_name_key)
+			_offer_route.text = tr(rides.offer.pickup.display_name_key)
+			_offer_dist.get_parent().visible = false
 		RideManager.RideState.BOARDING:
-			lines.append(tr("UI_BOARDING"))
-	_offer_panel.visible = not lines.is_empty()
-	_offer_label.text = "\n".join(lines)
+			show = true
+			_offer_label.text = tr("UI_BOARDING")
+			_offer_route.visible = false
+			_offer_dist.get_parent().visible = false
+	_offer_panel.visible = show
 
 
 func _update_gps() -> void:
@@ -305,14 +397,12 @@ func _update_ride_panel(delta: float) -> void:
 		_mood_timer = 0.5
 		_mood_state = PassengerMood.evaluate(rides.telemetry, rides.offer.profile, rides.offer.route_m, rides.remaining_m, rides.config)
 	var t := rides.telemetry
-	var lines := PackedStringArray()
-	lines.append(tr(rides.offer.profile.display_name_key).to_upper())
-	lines.append("%s: %s" % [tr("UI_DESTINATION"), tr(rides.offer.destination.display_name_key)])
+	_ride_label.text = tr(rides.offer.profile.display_name_key).to_upper()
+	_ride_dest.text = "→ %s" % tr(rides.offer.destination.display_name_key)
 	var remaining := guidance.remaining_m if guidance != null and guidance.plan != null else rides.remaining_m
-	lines.append("%s: %s" % [tr("UI_REMAINING"), km(remaining)])
-	lines.append("%s: %s" % [tr("UI_PASSENGER_MOOD"), tr(PassengerMood.KEYS[_mood_state])])
-	lines.append("%s: %d:%02d" % [tr("UI_RIDE_TIME"), int(t.elapsed) / 60, int(t.elapsed) % 60])
-	_ride_label.text = "\n".join(lines)
+	_ride_dist.text = km(remaining)
+	_set_chip(_ride_chip, _ride_chip_label, tr(PassengerMood.KEYS[_mood_state]), MOOD_COLORS[_mood_state])
+	_ride_time.text = "%d:%02d" % [int(t.elapsed) / 60, int(t.elapsed) % 60]
 
 
 func _on_reaction(key: String) -> void:

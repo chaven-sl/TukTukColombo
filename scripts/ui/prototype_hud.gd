@@ -64,11 +64,11 @@ func _build() -> void:
 	var root: Control = safe_root
 
 	_score_label = Label.new()
-	_score_label.label_settings = _settings(30, Color(1, 1, 1), 7)
+	_score_label.label_settings = _settings(22, Color(1, 1, 1, 0.9), 3)  # v0.03B1: score never competes with the road
 	root.add_child(_score_label)
 
 	_speed_label = Label.new()
-	_speed_label.label_settings = _settings(64, Color(1, 1, 1), 10)
+	_speed_label.label_settings = _settings(54, Color(1, 1, 1), 4)
 	_speed_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_speed_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	root.add_child(_speed_label)

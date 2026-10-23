@@ -24,6 +24,6 @@ extends Resource
 @export var update_interval := 0.1
 
 @export_group("Ribbon")
-@export var ribbon_width := 1.2
+@export var ribbon_width := 0.85
 @export var ribbon_height := 0.07
 @export var ribbon_color := Color(0.2, 0.82, 0.95)

@@ -9,7 +9,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled, blend_mix, depth_draw_never;
 uniform vec4 color : source_color = vec4(0.15, 0.85, 1.0, 1.0);
 uniform float progress = 0.0;
-uniform float spacing = 2.6;
+uniform float spacing = 3.4;
 void fragment() {
 	float along = UV.x;
 	float ahead = along - progress - 2.0;
@@ -27,7 +27,7 @@ void fragment() {
 	// never sits on the bonnet, and lets the asphalt read through a little.
 	float fade = smoothstep(0.0, 6.0, ahead);
 	ALBEDO = mix(color.rgb * 0.8, color.rgb, chevron);
-	ALPHA = a * fade * 0.88;
+	ALPHA = a * fade * 0.7;  // v0.03B1: guides, never dominates
 }
 """
 
