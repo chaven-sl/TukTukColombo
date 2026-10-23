@@ -35,6 +35,7 @@ extends Node3D
 ## Presentation style: greybox test track, or the Fort–Pettah art pass
 ## (district lighting + DistrictArt dresser + audio).
 @export_enum("Greybox", "FortPettah") var art_style := 0
+const GARAGE_SCENE := "res://scenes/garage/garage.tscn"
 var _greybox_environment: Environment = null
 
 ## LOW, MEDIUM, HIGH (indexed by GraphicsProfile.Tier).
@@ -95,6 +96,7 @@ func _ready() -> void:
 		_mark("district_art")
 	humans.setup(pedestrians, traffic, player, camera, human_seed)
 	_mark("humans_pool")
+	_apply_career()
 	offers.setup(pedestrians, network, humans, offer_seed)
 	rides.setup(player, offers, humans, network, scoring)
 	hud.setup(player, scoring)
@@ -180,6 +182,49 @@ func _setup_platform() -> void:
 	perf_test.network = network
 	perf_test.traffic = traffic
 	pause.perf_test_requested.connect(func() -> void: start_perf_test(DevicePerfTest.DEFAULT_SECONDS))
+	pause.garage_check = can_return_to_garage
+	pause.garage_requested.connect(return_to_garage)
+
+
+## v0.04: the tuk drives with its upgrades (EffectiveVehicleConfig: a copy
+## of the base tuning — the base resource is never modified) and the ride
+## system knows the career level for job tiers and payouts.
+var base_tuning: VehicleTuning
+
+
+func _apply_career() -> void:
+	var career := GameState.career
+	if base_tuning == null:
+		base_tuning = player.tuning if player.tuning != null else VehicleTuning.new()
+	player.tuning = EffectiveVehicleConfig.build(base_tuning, career.upgrade_levels())
+	rides.economy = GameState.economy
+	rides.career_level = career.career_level()
+	offers.economy = GameState.economy
+	offers.career_level = career.career_level()
+	if not GameState.career_level_up.is_connected(_on_career_level_up):
+		GameState.career_level_up.connect(_on_career_level_up)
+	print("[Career] level %d, Rs. %d, ★ %d, upgrades %s, top speed %.1f km/h, brakes %.0f N" % [career.career_level(), career.cash(),
+			career.reputation(), career.upgrade_levels(), player.tuning.top_speed_kmh, player.tuning.brake_force])
+
+
+func _on_career_level_up(level: int) -> void:
+	rides.career_level = level
+	offers.career_level = level
+	notifications.notify(tr("UI_CAREER_LEVEL_UP") % [level, tr(GameState.economy.career_name_keys[level - 1])],
+			NotificationPresenter.Category.RIDE, NotificationPresenter.Priority.HIGH, 4.0)
+
+
+## Safe moment to leave for the garage: no hire in progress, tuk (nearly) stopped.
+func can_return_to_garage() -> bool:
+	return rides.state == RideManager.RideState.NO_RIDE and player.speed_kmh < 6.0
+
+
+func return_to_garage() -> void:
+	if not can_return_to_garage():
+		return
+	GameState.set_paused(false)
+	GameState.prepare_garage_return()
+	get_tree().change_scene_to_file(GARAGE_SCENE)
 
 
 ## v0.03B1: one line describing what the device is ACTUALLY running.
