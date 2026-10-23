@@ -63,6 +63,7 @@ func _run() -> void:
 	_collider_separation()
 	_lanes_and_spawns_clear()
 	_routes_and_ribbon()
+	_hud_compact()
 	await _audio()
 	print("\nFORT–PETTAH: %s (%d failures)" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -96,7 +97,12 @@ func _hero_tuk() -> void:
 	_check("visual tuk exists", hero != null and hero.body_instance != null and hero.body_instance.mesh != null)
 	if hero == null:
 		return
-	_check("hero tuk ≤30k triangles", hero.triangle_count() > 500 and hero.triangle_count() <= 30000, "%d tris" % hero.triangle_count())
+	_check("hero tuk v2 detail budget (5k–30k triangles)", hero.triangle_count() >= 5000 and hero.triangle_count() <= 30000, "%d tris" % hero.triangle_count())
+	var kinds := hero.material_kinds()
+	var needed := ["paint", "chrome", "rubber", "fabric", "vinyl", "glass_clear", "lamp_head", "lamp_brake"]
+	var missing := needed.filter(func(k: String) -> bool: return not kinds.has(k))
+	_check("hero tuk material separation (paint/chrome/rubber/fabric/vinyl/glass/lamps)", missing.is_empty(), "missing %s" % str(missing))
+	_check("fork + mudguard steer with FrontSteer", hero.fork_instance != null and hero.fork_instance.get_parent() == player.get_node("Visual/FrontSteer"))
 	_check("stylised driver seated (DRIVE)", hero.driver != null and hero.driver.mode == CharacterRig.Mode.DRIVE)
 	var wheels := 0
 	for path in ["Visual/FrontSteer/Spin/HeroWheel", "Visual/RearLeft/Spin/HeroWheel", "Visual/RearRight/Spin/HeroWheel"]:
@@ -238,6 +244,19 @@ func _lanes_and_spawns_clear() -> void:
 		if hit != null:
 			bad += " %s→%s" % [s.spot_id, (hit as Node).name]
 	_check("no pedestrian spot inside art", bad.is_empty(), "%d spots%s" % [net.spots.size(), bad])
+	# v0.03B1 background crowd: static, inside building footprints, never on a lane.
+	var crowd := dresser.crowd_positions
+	var on_lane := 0
+	var outside := 0
+	for p in crowd:
+		if not dresser._lane_clear(p, 0.3):
+			on_lane += 1
+		if _proxy_hit(p + Vector3.UP * 1.0, Vector3(0.05, 0.3, 0.05), Basis.IDENTITY) != dresser.building_body:
+			outside += 1
+	_check("background crowd present (Pettah density)", crowd.size() >= 60, "%d figures" % crowd.size())
+	_check("background crowd never on a gameplay lane", on_lane == 0, "%d on lanes" % on_lane)
+	_check("background crowd only inside building footprints", outside == 0, "%d outside" % outside)
+	_check("blade signs project from façades", int(dresser.stats["blade_signs"]) >= 30, str(dresser.stats["blade_signs"]))
 
 
 func _spot(id: StringName) -> PedestrianSpot:
@@ -245,6 +264,15 @@ func _spot(id: StringName) -> PedestrianSpot:
 		if s.spot_id == id:
 			return s
 	return null
+
+
+func _hud_compact() -> void:
+	print("\n-- HUD (compact)")
+	var ride_hud: RideHud = main.get_node("RideHud")
+	var card := ride_hud.get("_offer_panel") as Control
+	_check("hire card compact (≤ 320 px wide)", card.size.x <= 320.0, "%.0f px" % card.size.x)
+	var ride := ride_hud.get("_ride_panel") as Control
+	_check("ride card compact (≤ 320 px wide)", ride.size.x <= 320.0, "%.0f px" % ride.size.x)
 
 
 func _routes_and_ribbon() -> void:

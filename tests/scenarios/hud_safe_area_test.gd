@@ -76,14 +76,21 @@ func _fill() -> void:
 	hud.set_process(false)
 	hud.get("_score_label").text = "%s  %d" % [tr("UI_SCORE"), 1234567]
 	hud.get("_speed_label").text = "188"
-	var offer: Label = ride_hud.get("_offer_label")
-	offer.text = "\n".join([tr("UI_HIRE_AVAILABLE"), LONG_NAME.to_upper(), "%s: %s" % [tr("UI_PICKUP"), LONG_PLACE],
-			"%s: %s" % [tr("UI_DESTINATION"), LONG_PLACE], "%s: 12.4 km" % tr("UI_TRIP"), "%s: %s" % [tr("UI_PRIORITY"), tr("PRIORITY_SAFE")]])
+	# v0.03B1 compact card: worst case per field (long name, long route).
+	(ride_hud.get("_offer_label") as Label).text = LONG_NAME.to_upper()
+	(ride_hud.get("_offer_route") as Label).text = "%s → %s" % [LONG_PLACE, LONG_PLACE]
+	(ride_hud.get("_offer_dist") as Label).text = "12.4 km"
+	(ride_hud.get("_offer_chip_label") as Label).text = tr("PRIORITY_EXCITING")
+	(ride_hud.get("_offer_hint") as Label).text = tr("UI_ACCEPT_HIRE") % "E"
+	(ride_hud.get("_offer_hint") as Label).visible = true
 	(ride_hud.get("_offer_panel") as Control).visible = true
 	(ride_hud.get("_gps_label") as Label).text = "DESTINATION — 1160 m"
 	(ride_hud.get("_gps_panel") as Control).visible = true
-	(ride_hud.get("_ride_label") as Label).text = "\n".join([LONG_NAME.to_upper(), "%s: %s" % [tr("UI_DESTINATION"), LONG_PLACE],
-			"%s: 1.2 km" % tr("UI_REMAINING"), "%s: %s" % [tr("UI_PASSENGER_MOOD"), tr("MOOD_IMPATIENT")], "%s: 12:34" % tr("UI_RIDE_TIME")])
+	(ride_hud.get("_ride_label") as Label).text = LONG_NAME.to_upper()
+	(ride_hud.get("_ride_dest") as Label).text = "→ %s" % LONG_PLACE
+	(ride_hud.get("_ride_dist") as Label).text = "1.2 km"
+	(ride_hud.get("_ride_chip_label") as Label).text = tr("MOOD_IMPATIENT")
+	(ride_hud.get("_ride_time") as Label).text = "12:34"
 	(ride_hud.get("_ride_panel") as Control).visible = true
 	var bubble: Label = ride_hud.get("_bubble")
 	bubble.text = "“%s”" % LONG_NOTICE

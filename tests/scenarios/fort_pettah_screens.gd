@@ -190,56 +190,23 @@ func _gates() -> void:
 	await _frames(30)
 	await _shot("v003b_gate_c_active_hire")
 	# D. Incident: driver out and arguing, passenger still in the tuk.
-	var best: TrafficAgent = null
-	var best_d := 40.0
-	for a in traffic.active_agents:
-		var d := a.global_position.distance_to(player.global_position)
-		if d < best_d and a.vehicle_class.kind != TrafficVehicleClass.Kind.MOTORCYCLE:
-			best_d = d
-			best = a
-	if best == null:
-		var l := _nearest_lane_ahead()
-		best = _stage(TrafficVehicleClass.Kind.CAR, 1, l, 0.0, 0.0)
-	for attempt in 4:
-		if best == null or humans.driver_count() > 0:
-			break
-		while incidents.phase != TrafficIncidentManager.Phase.NONE:
-			await _frames(1)
-		# Park the other vehicle just ahead of the tuk in its lane, then report
-		# the same CollisionEvent TukController emits for a moderate bump.
-		var l2 := _nearest_lane_ahead()
-		if l2 != null:
-			best.deactivate()
-			best.activate(l2, _s_on(l2, player.global_position) + 6.5, 0.0, 0.0, traffic.choose_next_lane(l2))
-		var ev := CollisionEvent.new()
-		ev.kind = CollisionEvent.Kind.TRAFFIC
-		ev.severity = CollisionEvent.Severity.MAJOR
-		ev.impact_speed = 38.0 / 3.6  # MAJOR tier: the driver usually gets out
-		ev.position = player.global_position
-		ev.other_agent_id = best.agent_id
-		ev.timestamp = SimClock.now()
-		EventBus.collision_event.emit(ev)
-		player.input.brake = 1.0
-		player.input.handbrake = true
-		for w in 240:
-			if humans.driver_count() > 0:
-				break
-			await _frames(1)
-		print("[Screens] incident attempt %d: altercations %d, drivers %d" % [attempt, incidents.stats_altercations, humans.driver_count()])
-		if humans.driver_count() == 0:
-			while incidents.phase != TrafficIncidentManager.Phase.NONE:
-				await _frames(1)
-			var idx := traffic.active_agents.find(best)
-			if idx >= 0:
-				traffic._despawn_at(idx)  # the honk-only car leaves the shot
-			best = _stage(TrafficVehicleClass.Kind.CAR, attempt + 1, _nearest_lane_ahead(), 0.0, 0.0)
+	# Composition: a car stopped just ahead in the tuk's lane; the altercation
+	# is started through TrafficIncidentManager with the driver getting out
+	# (the same path a MAJOR collision takes when the temperament exits).
+	player.input.throttle = 0.0
 	player.input.brake = 1.0
 	player.input.handbrake = true
+	await _frames(30)
+	var lane := _nearest_lane_ahead()
+	var best: TrafficAgent = _stage(TrafficVehicleClass.Kind.CAR, 2, lane, _s_on(lane, player.global_position) + 6.8, 0.0) if lane != null else null
+	if best != null:
+		var temp := IncidentRules.pick_temperament(incidents.config, 0.9)
+		incidents.call("_begin", best, IncidentRules.Tier.MAJOR, temp, true)
 	var f := 0
-	while f < 400 and humans.driver_count() == 0:
+	while f < 600 and humans.driver_count() == 0:
 		await _frames(1)
 		f += 1
-	await _frames(150)
+	await _frames(170)
 	var drv: HumanAgent = null
 	for h in humans.active:
 		if h.role == HumanAgent.Role.TRAFFIC_DRIVER:
