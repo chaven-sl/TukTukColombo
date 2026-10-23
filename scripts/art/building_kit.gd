@@ -18,7 +18,11 @@ enum Roof { PARAPET, PITCHED_TILE, PITCHED_SHEET, STEPPED }
 
 ## One narrow shop-house (2–4 storeys). `p` keys (all optional):
 ## width, depth, storeys, wall, trim, ground, awning (Color or null),
-## awning_stripe (Color or null), balcony, roof, grime, windows (int per storey), shade_cloth
+## awning_stripe (Color or null), balcony, roof, grime, windows (int per storey), shade_cloth,
+## v0.03B1: recess (shop interior depth, m), overhang (upper storeys cantilevered
+## over the pavement, m), crowd (int: static background figures in the shop).
+## Returned slots: {"xf", "size"} sign slots, plus {"crowd": Transform3D} for
+## background figures (always inside the building footprint, z > 0).
 static func shop_house(c: DistrictChunks.Builders, xf: Transform3D, p: Dictionary, rng: RandomNumberGenerator) -> Array:
 	var w: float = p.get("width", 6.0)
 	var d: float = p.get("depth", 9.0)
@@ -40,13 +44,36 @@ static func shop_house(c: DistrictChunks.Builders, xf: Transform3D, p: Dictionar
 	c.plaster.box(xf, Vector3(-hw + 0.3, gh * 0.5, 0.15), Vector3(0.6, gh, 0.3), wall_low)
 	c.plaster.box(xf, Vector3(hw - 0.3, gh * 0.5, 0.15), Vector3(0.6, gh, 0.3), wall_low)
 	var ow := w - 1.2
+	var recess: float = p.get("recess", 1.8)
 	match ground:
 		Ground.SHOP_OPEN, Ground.HALF_SHUTTER:
-			# Dark interior + goods shelves suggestion + roller shutter box.
-			c.plaster.box(xf, Vector3(0, 1.45, 0.9), Vector3(ow, 2.9, 0.1), Color(0.14, 0.12, 0.11))
-			for k in 3:
-				c.plaster.box(xf, Vector3(0, 0.6 + k * 0.7, 0.75), Vector3(ow * 0.9, 0.08, 0.3), ArtPalette.pick(ArtPalette.ACCENTS, rng).darkened(0.25))
+			# Deep, dark shop interior (v0.03B1): back wall, side walls, ceiling
+			# and floor in shade; shelves stacked with goods; a strip light.
+			var dark := Color(0.1, 0.09, 0.085)
+			c.plaster.box(xf, Vector3(0, 1.45, recess), Vector3(ow, 2.9, 0.1), dark)
+			for sx: float in [-1.0, 1.0]:
+				c.plaster.box(xf, Vector3(sx * (ow * 0.5 - 0.05), 1.45, recess * 0.5 + 0.2), Vector3(0.1, 2.9, recess - 0.2), dark.lightened(0.04))
+			c.plaster.box(xf, Vector3(0, 2.92, recess * 0.5 + 0.2), Vector3(ow, 0.06, recess - 0.2), dark.darkened(0.3))
+			c.plaster.box(xf, Vector3(0, 0.17, recess * 0.5 + 0.3), Vector3(ow, 0.02, recess - 0.3), Color(0.24, 0.22, 0.2))
+			for k in 4:  # shelves along the back wall, packed with goods
+				var y := 0.5 + k * 0.6
+				# Interior stock lives in the Detail layer (no shadow pass, 55 m
+				# range): it sits in shade inside the recess anyway (v0.03B1 perf).
+				c.wood.box(xf, Vector3(0, y, recess - 0.25), Vector3(ow * 0.92, 0.05, 0.4), Color(0.3, 0.22, 0.15))
+				var n := int(ow / 0.38)
+				for j in n:
+					if rng.randf() < 0.82:
+						var gc := ArtPalette.pick(ArtPalette.ACCENTS, rng) if rng.randf() < 0.5 else ArtPalette.vary(Color(0.7, 0.6, 0.45), rng, 0.12)
+						var hh := rng.randf_range(0.18, 0.46)
+						c.goods.box(xf, Vector3(-ow * 0.44 + (j + 0.5) * ow * 0.88 / n, y + 0.03 + hh * 0.5, recess - 0.25), Vector3(ow * 0.88 / n - 0.04, hh, 0.32), gc.darkened(0.15), 63 & ~(32 | 8))
+			for j in int(ow / 0.6):  # stock hanging from the ceiling near the opening
+				if rng.randf() < 0.55:
+					var gx := -ow * 0.42 + j * 0.6
+					c.goods.box(xf, Vector3(gx, 2.45, 0.55), Vector3(0.3, 0.7, 0.05), ArtPalette.pick(ArtPalette.ACCENTS, rng).darkened(0.1))
+			c.lights.box(xf, Vector3(0, 2.86, recess * 0.6), Vector3(minf(1.2, ow * 0.4), 0.04, 0.06), Color(0.9, 0.95, 1.0))  # tube light
 			c.metal.box(xf, Vector3(0, 3.0, 0.2), Vector3(ow, 0.28, 0.25), ArtPalette.SHUTTER)
+			for k in int(p.get("crowd", 0)):
+				signs.append({"crowd": xf * Transform3D(Basis(Vector3.UP, PI + rng.randf_range(-0.7, 0.7)), Vector3(rng.randf_range(-ow * 0.3, ow * 0.3), 0.17, rng.randf_range(0.6, recess - 0.6)))})
 			if ground == Ground.HALF_SHUTTER:
 				_shutter(c, xf, Vector3(0, 2.3, 0.3), Vector2(ow, 1.2))
 		Ground.SHUTTERED:
@@ -60,8 +87,15 @@ static func shop_house(c: DistrictChunks.Builders, xf: Transform3D, p: Dictionar
 			c.plaster.box(xf, Vector3(0, 1.5, 0.15), Vector3(ow, 3.0, 0.3), wall_low)
 	c.plaster.box(xf, Vector3(0, 0.08, 0.3), Vector3(w, 0.16, 0.6), ArtPalette.CONCRETE)  # threshold step
 	# Upper façade wall (the body box omits its street face so the shop opening stays recessed).
+	var oh: float = p.get("overhang", 0.0)
+	var up := xf * Transform3D(Basis.IDENTITY, Vector3(0, 0, -oh))  # upper-storey façade frame
 	if h > gh:
-		c.plaster.box(xf, Vector3(0, (gh + h) * 0.5, 0.05), Vector3(w, h - gh, 0.1), wall_up, 63 & ~16)
+		c.plaster.box(up, Vector3(0, (gh + h) * 0.5 + 0.25, 0.05), Vector3(w, h - gh - 0.5, 0.1), wall_up, 63 & ~16)
+		if oh > 0.0:  # soffit and side cheeks of the cantilevered storeys
+			c.plaster.box(xf, Vector3(0, gh + 0.5, -oh * 0.5 + 0.05), Vector3(w, 0.16, oh + 0.1), wall_up.darkened(0.3))
+			for sx: float in [-1.0, 1.0]:
+				c.plaster.box(xf, Vector3(sx * (hw - 0.04), (gh + h) * 0.5 + 0.25, -oh * 0.5), Vector3(0.08, h - gh - 0.5, oh), wall_up.darkened(0.12))
+		c.plaster.box(xf, Vector3(0, gh + 0.4, 0.05), Vector3(w, 0.3, 0.1), wall_up)
 	# --- fascia + sign band over the shop ---
 	c.plaster.box(xf, Vector3(0, gh + 0.25, 0.12), Vector3(w, 0.5, 0.24), trim)
 	if p.get("sign", true):
@@ -80,27 +114,31 @@ static func shop_house(c: DistrictChunks.Builders, xf: Transform3D, p: Dictionar
 	var win_n: int = p.get("windows", maxi(1, int(w / 2.4)))
 	for st in range(1, storeys):
 		var y0 := st * STOREY + 0.2
-		c.plaster.box(xf, Vector3(0, y0 - 0.1, 0.05), Vector3(w + 0.1, 0.18, 0.2), trim)  # floor ledge
+		c.plaster.box(up, Vector3(0, y0 - 0.1, 0.0), Vector3(w + 0.1, 0.18, 0.26), trim)  # floor ledge
 		var bal: bool = p.get("balcony", false) and st == 1
 		for k in win_n:
 			var x := -hw + w * (k + 0.5) / win_n
 			var ww := minf(1.15, w / win_n - 0.6)
-			c.plaster.box(xf, Vector3(x, y0 + 1.25, -0.03), Vector3(ww + 0.22, 1.85, 0.06), trim)  # frame
-			c.glass.box(xf, Vector3(x, y0 + 1.25, -0.065), Vector3(ww, 1.6, 0.02), ArtPalette.WINDOW_DARK)
+			c.plaster.box(up, Vector3(x, y0 + 1.25, -0.03), Vector3(ww + 0.22, 1.85, 0.06), trim)  # frame
+			c.glass.box(up, Vector3(x, y0 + 1.25, 0.06), Vector3(ww, 1.6, 0.02), ArtPalette.WINDOW_DARK)  # set back: reveals read as depth
+			c.plaster.box(up, Vector3(x, y0 + 2.22, -0.08), Vector3(ww + 0.42, 0.16, 0.18), trim.darkened(0.06))  # lintel / hood
 			if rng.randf() < 0.5:  # timber/louvre shutters half open
-				c.plaster.box(xf, Vector3(x - ww * 0.55, y0 + 1.25, -0.09), Vector3(ww * 0.45, 1.6, 0.03), ArtPalette.vary(ArtPalette.TURQUOISE.darkened(0.25), rng, 0.08))
-			c.plaster.box(xf, Vector3(x, y0 + 0.38, -0.1), Vector3(ww + 0.35, 0.08, 0.2), trim.darkened(0.08))  # sill
-			if rng.randf() < 0.3:  # AC unit / clutter
-				c.metal.box(xf, Vector3(x + ww * 0.3, y0 + 0.25, -0.25), Vector3(0.7, 0.45, 0.35), Color(0.85, 0.85, 0.82))
+				c.plaster.box(up, Vector3(x - ww * 0.55, y0 + 1.25, -0.09), Vector3(ww * 0.45, 1.6, 0.03), ArtPalette.vary(ArtPalette.TURQUOISE.darkened(0.25), rng, 0.08))
+			c.plaster.box(up, Vector3(x, y0 + 0.38, -0.1), Vector3(ww + 0.35, 0.08, 0.2), trim.darkened(0.08))  # sill
+			if rng.randf() < 0.45:  # AC unit / clutter
+				c.metal.box(up, Vector3(x + ww * 0.3, y0 + 0.25, -0.25), Vector3(0.7, 0.45, 0.35), Color(0.85, 0.85, 0.82))
+				c.metal.box(up, Vector3(x + ww * 0.3, y0 + 0.25, -0.43), Vector3(0.5, 0.3, 0.01), Color(0.4, 0.4, 0.4))
 		if bal:
-			c.plaster.box(xf, Vector3(0, y0 + 0.05, -0.55), Vector3(w * 0.85, 0.12, 1.1), trim)
+			c.plaster.box(up, Vector3(0, y0 + 0.05, -0.55), Vector3(w * 0.85, 0.12, 1.1), trim)
 			for k in int(w * 2.0):
-				c.metal.box(xf, Vector3(-w * 0.42 + k * 0.5, y0 + 0.55, -1.08), Vector3(0.04, 0.9, 0.04), ArtPalette.METAL_DARK)
-			c.metal.box(xf, Vector3(0, y0 + 1.0, -1.08), Vector3(w * 0.85, 0.05, 0.05), ArtPalette.METAL_DARK)
+				c.metal.box(up, Vector3(-w * 0.42 + k * 0.5, y0 + 0.55, -1.08), Vector3(0.04, 0.9, 0.04), ArtPalette.METAL_DARK)
+			c.metal.box(up, Vector3(0, y0 + 1.0, -1.08), Vector3(w * 0.85, 0.05, 0.05), ArtPalette.METAL_DARK)
 	# --- roofline ---
 	match roof:
 		Roof.PARAPET:
-			c.plaster.box(xf, Vector3(0, h + 0.45, 0.1), Vector3(w + 0.1, 0.9, 0.2), trim)
+			var ph := rng.randf_range(0.5, 1.5)  # varied parapet heights break the roofline
+			c.plaster.box(up, Vector3(0, h + ph * 0.5, 0.1), Vector3(w + 0.1, ph, 0.2), trim)
+			c.plaster.box(up, Vector3(0, h + ph + 0.05, 0.05), Vector3(w + 0.25, 0.1, 0.32), trim.darkened(0.08))  # coping
 			c.plaster.box(xf, Vector3(0, h + 0.05, d * 0.5), Vector3(w, 0.1, d), ArtPalette.CONCRETE_DARK)
 			if rng.randf() < 0.45:  # water tank on the roof (very Colombo)
 				c.plaster.cylinder(xf, Vector3(rng.randf_range(-hw * 0.5, hw * 0.5), h + 0.75, d * 0.6), 0.55, 1.3, 8, Color(0.15, 0.15, 0.17))
@@ -116,10 +154,14 @@ static func shop_house(c: DistrictChunks.Builders, xf: Transform3D, p: Dictionar
 		Roof.STEPPED:
 			c.plaster.box(xf, Vector3(0, h + 0.35, 0.1), Vector3(w + 0.1, 0.7, 0.2), trim)
 			c.plaster.box(xf, Vector3(0, h + 1.1, 0.1), Vector3(w * 0.4, 0.8, 0.2), trim)
+	# Drainpipe down one side; dark grime band at pavement level.
+	var dx := hw - 0.15 if rng.randf() < 0.5 else -hw + 0.15
+	c.metal.cylinder(up, Vector3(dx, h * 0.5 + 1.6, -0.12), 0.06, h - 3.2, 6, Color(0.3, 0.3, 0.31))
+	c.plaster.box(xf, Vector3(0, 0.35, -0.004), Vector3(w, 0.5, 0.01), ArtPalette.weather(wall, 0.6).darkened(0.2))
 	# Grime streaks under ledges.
 	if grime > 0.2:
 		for k in 2:
-			c.plaster.box(xf, Vector3(rng.randf_range(-hw * 0.7, hw * 0.7), h - 1.6, -0.005), Vector3(0.35, 2.4, 0.01), ArtPalette.weather(wall, 0.55))
+			c.plaster.box(up, Vector3(rng.randf_range(-hw * 0.7, hw * 0.7), h - 1.6, -0.005), Vector3(0.35, 2.4, 0.01), ArtPalette.weather(wall, 0.55))
 	return signs
 
 

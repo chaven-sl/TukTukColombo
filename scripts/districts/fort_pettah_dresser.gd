@@ -28,11 +28,16 @@ var building_body: StaticBody3D
 var prop_body: StaticBody3D
 var forecourt_body: StaticBody3D
 ## Stats (report / tests).
-var stats := {"buildings": 0, "props": 0, "signs": 0, "parked_vehicles": 0, "side_streets": 0}
+var stats := {"buildings": 0, "props": 0, "signs": 0, "parked_vehicles": 0, "side_streets": 0, "crowd_figures": 0, "blade_signs": 0}
 var _shop_signs: Array = []  # [Rect2 uv, Color bg]
 var _sign_index := 0
 var _spot_positions := PackedVector3Array()
 var _parked: Array = []
+## v0.03B1: lane centreline samples hashed in 8 m cells — every clutter item
+## checks it stays clear of legal driving lanes (curves included).
+var _lane_cells: Dictionary = {}
+## World positions of baked background figures (tests: never on a lane).
+var crowd_positions := PackedVector3Array()
 
 
 func dress(p_network: RoadNetwork, p_pedestrians: PedestrianNetwork) -> void:
@@ -49,6 +54,7 @@ func dress(p_network: RoadNetwork, p_pedestrians: PedestrianNetwork) -> void:
 	building_body = _body("BuildingProxies", WorldSurface.Type.BUILDING)
 	prop_body = _body("PropProxies", WorldSurface.Type.PROP)
 	forecourt_body = _body("ForecourtProxies", WorldSurface.Type.SIDEWALK)
+	_index_lanes()
 	for c in pedestrians.get_children():
 		if c is PedestrianSpot:
 			_spot_positions.append((c as Node3D).global_position)
@@ -97,6 +103,32 @@ func _frame(seg: RoadSegment, s: float, side: float, off: float) -> Transform3D:
 	var to_road := -(xf.basis * seg.local_right(s)) * side
 	to_road.y = 0.0
 	return Transform3D(MathUtil.basis_from_forward(to_road.normalized()), Vector3(p.x, 0.0, p.z))
+
+
+func _index_lanes() -> void:
+	for lane in network.lanes:
+		var k := 0.0
+		while k <= lane.length:
+			var i := clampi(lane.cumulative.bsearch(k), 0, lane.points.size() - 1)
+			var p := lane.points[i]
+			var key := Vector2i(floori(p.x / 8.0), floori(p.z / 8.0))
+			# Packed arrays are values: append to a copy, then store it back.
+			var cell: PackedVector3Array = _lane_cells.get(key, PackedVector3Array())
+			cell.append(Vector3(p.x, lane.width * 0.5, p.z))
+			_lane_cells[key] = cell
+			k += 1.5
+
+
+## True if a footprint of radius `r` at `p` stays clear of every lane.
+func _lane_clear(p: Vector3, r: float) -> bool:
+	var key := Vector2i(floori(p.x / 8.0), floori(p.z / 8.0))
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var cell: PackedVector3Array = _lane_cells.get(key + Vector2i(dx, dz), PackedVector3Array())
+			for q in cell:
+				if Vector2(q.x - p.x, q.z - p.z).length() < r + q.y + 0.3:
+					return false
+	return true
 
 
 func _near_spot(p: Vector3, r: float) -> bool:
@@ -168,7 +200,31 @@ func _sign_quad(xf: Transform3D, size: Vector2, uv: Rect2) -> void:
 
 func _place_signs(slots: Array) -> void:
 	for slot: Dictionary in slots:
+		if slot.has("crowd"):
+			_crowd_figure(slot["crowd"])
+			continue
 		_sign_quad(slot["xf"], slot["size"], _next_shop_sign())
+
+
+## v0.03B1 non-gameplay crowd: a static figure baked into the chunk's Detail
+## layer (no logic, no collision, culled at the clutter range). Only ever
+## placed inside building footprints (shop recesses), never on a pavement
+## or lane — interactive pedestrians stay the only people in reach.
+func _crowd_figure(xf: Transform3D) -> void:
+	chunks.at(xf.origin).crowd.append(CharacterBuilder.static_figure(rng.randi() % CharacterBuilder.variant_count()), xf)
+	crowd_positions.append(xf.origin)
+	stats["crowd_figures"] += 1
+
+
+## Blade sign projecting perpendicular from the façade (both faces).
+func _blade_sign(xf: Transform3D, x: float, y: float) -> void:
+	var bxf := xf * Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x, y, -0.75))
+	var uv := _next_shop_sign()
+	_sign_quad(bxf, Vector2(1.3, 0.42), uv)
+	_sign_quad(bxf * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO), Vector2(1.3, 0.42), uv)
+	var c := chunks.at(bxf.origin)
+	c.metal.box(xf, Vector3(x, y + 0.26, -0.4), Vector3(0.04, 0.04, 0.85), ArtPalette.METAL_DARK)  # bracket
+	stats["blade_signs"] += 1
 
 
 # --- segment dressing ---
@@ -260,6 +316,12 @@ func _building(c: DistrictChunks.Builders, xf: Transform3D, style: String, w: fl
 			p["roof"] = [BuildingKit.Roof.PARAPET, BuildingKit.Roof.PARAPET, BuildingKit.Roof.PITCHED_SHEET, BuildingKit.Roof.STEPPED, BuildingKit.Roof.PITCHED_TILE][rng.randi() % 5]
 			p["balcony"] = rng.randf() < 0.35
 			var market := style == "market"
+			# v0.03B1 depth: deep shop recesses with background figures; in the
+			# market the upper storeys cantilever over the pavement (canyon).
+			p["recess"] = 2.1 if market else 1.7
+			p["crowd"] = (1 + int(rng.randf() < 0.5)) if market else int(rng.randf() < 0.4)
+			if market and storeys >= 3 and rng.randf() < 0.65:
+				p["overhang"] = rng.randf_range(0.7, 1.1)
 			p["ground"] = [BuildingKit.Ground.SHOP_OPEN, BuildingKit.Ground.SHOP_OPEN, BuildingKit.Ground.HALF_SHUTTER,
 					BuildingKit.Ground.SHUTTERED, BuildingKit.Ground.GLAZED][rng.randi() % (3 if market else 5)]
 			if market or rng.randf() < 0.6:
@@ -268,6 +330,8 @@ func _building(c: DistrictChunks.Builders, xf: Transform3D, style: String, w: fl
 					p["awning_stripe"] = ArtPalette.OFF_WHITE
 			height = storeys * BuildingKit.STOREY
 			_place_signs(BuildingKit.shop_house(c, xf, p, rng))
+			if market or (style == "olcott" and rng.randf() < 0.35):
+				_blade_sign(xf, (w * 0.5 - 0.35) * (1.0 if rng.randf() < 0.5 else -1.0), BuildingKit.STOREY + 1.6 + rng.randf() * 0.8)
 			if market:
 				_market_spill(c, xf, w)
 			elif rng.randf() < 0.3:
@@ -278,19 +342,41 @@ func _building(c: DistrictChunks.Builders, xf: Transform3D, style: String, w: fl
 
 ## Goods spilling onto the pavement in front of a Pettah shop (on the
 ## building side of the pavement — the walking line stays usable).
+## v0.03B1: layered, not one item: a display table or racks at the shop line,
+## sacks/crates beside it, hanging stock under the awning and often a second
+## tarp awning reaching further out, overlapping its neighbours.
 func _market_spill(c: DistrictChunks.Builders, xf: Transform3D, w: float) -> void:
-	var roll := rng.randf()
-	var local := xf * Transform3D(Basis.IDENTITY, Vector3(rng.randf_range(-w * 0.25, w * 0.25), 0.15, -0.75))
-	if roll < 0.25:
-		StreetKit.sacks(c, local, rng.randi_range(3, 6), rng)
-		_proxy(prop_body, local, Vector3(0, 0.4, 0), Vector3(1.6, 0.8, 0.7))
-	elif roll < 0.45:
-		StreetKit.boxes(c, local, rng.randi_range(2, 5), rng)
-	elif roll < 0.6:
+	var local := xf * Transform3D(Basis.IDENTITY, Vector3(rng.randf_range(-w * 0.15, w * 0.15), 0.15, -0.65))
+	if not _lane_clear(local.origin, 1.4):
+		return  # curve / corner: the pavement edge runs close to a lane
+	if rng.randf() < 0.6:
+		StreetKit.stall(c, local, rng.randi() % 3, rng)
+	else:
+		# Stepped display racks of goods (baskets, bolts of cloth, plastics).
+		for tier in 3:
+			c.wood.box(local, Vector3(0, 0.25 + tier * 0.28, tier * 0.18), Vector3(w * 0.55, 0.05, 0.3), StreetKit.WOOD.darkened(0.1))
+			for j in int(w * 0.55 / 0.32):
+				c.goods.box(local, Vector3(-w * 0.26 + j * 0.32, 0.36 + tier * 0.28, tier * 0.18), Vector3(0.26, 0.2, 0.24), ArtPalette.pick(ArtPalette.ACCENTS, rng).darkened(0.1))
+	_proxy(prop_body, local, Vector3(0, 0.5, 0), Vector3(minf(w * 0.6, 1.9), 1.0, 0.9))
+	var side := xf * Transform3D(Basis.IDENTITY, Vector3((w * 0.5 - 0.6) * (1.0 if rng.randf() < 0.5 else -1.0), 0.15, -0.45))
+	if rng.randf() < 0.5:
+		StreetKit.sacks(c, side, rng.randi_range(3, 6), rng)
+	else:
+		StreetKit.boxes(c, side, rng.randi_range(3, 6), rng)
+	_proxy(prop_body, side, Vector3(0, 0.45, 0), Vector3(1.2, 0.9, 0.7))
+	if rng.randf() < 0.7:
 		StreetKit.hanging_goods(c, xf * Transform3D(Basis.IDENTITY, Vector3(0, 0.15, 0)), w * 0.8, rng)
-	elif roll < 0.75:
-		StreetKit.stall(c, local * Transform3D(Basis.IDENTITY, Vector3(0, 0, -0.3)), rng.randi() % 3, rng)
-		_proxy(prop_body, local, Vector3(0, 0.45, -0.3), Vector3(1.9, 0.9, 0.9))
+	if rng.randf() < 0.45:
+		# Second tarp on poles reaching over the pavement (2.4 m clear).
+		if not _lane_clear(xf * Vector3(0, 0, -2.3), w * 0.5):
+			stats["props"] += 1
+			return
+		var tc := ArtPalette.pick(ArtPalette.ACCENTS, rng)
+		# Pavements here are 2.6–3.0 m: poles stand at 2.3 m, inside the kerb.
+		var t := xf * Transform3D(Basis(Vector3.RIGHT, 0.12), Vector3(rng.randf_range(-0.4, 0.4), 2.55, -1.45))
+		c.fabric.box(t, Vector3.ZERO, Vector3(w * 0.9 + rng.randf_range(0.0, 1.2), 0.03, 1.9), tc)
+		for sx: float in [-1.0, 1.0]:
+			c.metal.cylinder(xf, Vector3(sx * w * 0.42, 1.25, -2.3), 0.03, 2.5, 5, Color(0.55, 0.55, 0.56))
 	stats["props"] += 1
 
 
@@ -356,10 +442,17 @@ func _street_furniture(seg: RoadSegment, side: float) -> void:
 		stats["props"] += 1
 		# Zone extras on the pavement.
 		var extra := _frame(seg, s + pole_spacing * 0.5, side, seg.outer_extent(s, side) - 0.9)
-		if s + pole_spacing * 0.5 < seg.length - 4.0 and _junction_clear(extra.origin) and not _near_spot(extra.origin, 4.0):
+		if s + pole_spacing * 0.5 < seg.length - 4.0 and _junction_clear(extra.origin) and not _near_spot(extra.origin, 4.0) \
+				and _lane_clear(extra.origin, 1.4):
 			var ec := chunks.at(extra.origin)
 			match zone:
 				&"market":
+					# Motorcycles parked parallel along the kerb edge (Pettah).
+					if rng.randf() < 0.5:
+						for k in rng.randi_range(1, 3):
+							var bxf := _frame(seg, s + pole_spacing * 0.5 - 1.5 + k * 1.1, side, seg.half_width(s) + 0.75)
+							if _junction_clear(bxf.origin) and not _near_spot(bxf.origin, 3.0) and _lane_clear(bxf.origin, 1.0):
+								_parked.append(["motorcycle", bxf * Transform3D(Basis(Vector3.UP, PI * 0.5 + rng.randf_range(-0.15, 0.15)), Vector3.ZERO), rng.randi() % 5])
 					if rng.randf() < 0.55:
 						StreetKit.handcart(ec, extra * Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(0, 0.15, 0)), rng.randi() % 3, rng)
 						_proxy(prop_body, extra, Vector3(0, 0.9, 0), Vector3(2.4, 1.6, 1.3))
@@ -433,6 +526,17 @@ func _dress_station() -> void:
 			var bxf := centre * Transform3D(Basis.IDENTITY, Vector3(x, 0, 0))
 			var bc := chunks.at(bxf.origin)
 			BuildingKit.arcade(bc, bxf, 10.0, 2, white, 2, rng)
+			# v0.03B1: pilasters with capitals between the bays, deep shadow
+			# behind each arch, and a balustraded parapet.
+			for px: float in [-5.0, 0.0, 5.0]:
+				bc.plaster.box(bxf, Vector3(px, 3.4, -0.18), Vector3(0.55, 6.8, 0.36), white.lightened(0.04))
+				bc.plaster.box(bxf, Vector3(px, 3.85, -0.3), Vector3(0.8, 0.3, 0.55), white.lightened(0.06))  # capital
+				bc.plaster.box(bxf, Vector3(px, 0.3, -0.26), Vector3(0.75, 0.6, 0.5), white.darkened(0.06))  # plinth
+			for ax: float in [-2.5, 2.5]:
+				bc.plaster.box(bxf, Vector3(ax, 1.5, 1.2), Vector3(3.0, 3.0, 0.08), Color(0.07, 0.065, 0.06))  # dark arcade depth
+			for k in 16:
+				bc.plaster.cylinder(bxf, Vector3(-4.7 + k * 0.627, 7.25, 0.0), 0.09, 0.5, 6, white, true, 0.06)  # balusters
+			bc.plaster.box(bxf, Vector3(0, 7.55, 0.0), Vector3(10.0, 0.14, 0.42), white.lightened(0.05))
 			# Dark tiled hip roof behind the parapet.
 			bc.plaster.quad(bxf * Vector3(-5.0, 7.0, 1.0), bxf * Vector3(5.0, 7.0, 1.0), bxf * Vector3(5.0, 9.6, 7.5), bxf * Vector3(-5.0, 9.6, 7.5), roof)
 			bc.plaster.quad(bxf * Vector3(-5.0, 9.6, 7.5), bxf * Vector3(5.0, 9.6, 7.5), bxf * Vector3(5.0, 7.0, 14.0), bxf * Vector3(-5.0, 7.0, 14.0), roof.darkened(0.1))
@@ -446,6 +550,10 @@ func _dress_station() -> void:
 			ec.glass.box(exf, Vector3(-1.8 + k * 3.6, 6.8, -0.03), Vector3(1.4, 2.4, 0.04), ArtPalette.WINDOW_DARK)
 			ec.plaster.arch_panel(exf * Transform3D(Basis.IDENTITY, Vector3(-1.8 + k * 3.6, 0, -0.02)), 3.6, 3.8, 2.4, 2.4, white, 7, Color(0.18, 0.16, 0.15))
 		ec.plaster.box(exf, Vector3(0, 10.8, 0.2), Vector3(8.4, 0.8, 0.5), white.darkened(0.03))
+		ec.plaster.tri(exf * Vector3(-4.3, 11.2, -0.1), exf * Vector3(0.0, 13.2, -0.1), exf * Vector3(4.3, 11.2, -0.1), white)  # pediment
+		ec.plaster.box(exf, Vector3(0, 11.15, -0.05), Vector3(8.8, 0.16, 0.5), white.lightened(0.05))
+		for px: float in [-3.6, 3.6]:
+			ec.plaster.box(exf, Vector3(px, 5.4, -0.2), Vector3(0.7, 10.8, 0.4), white.lightened(0.05))
 		_proxy(building_body, exf, Vector3(0, 5.2, 6.0), Vector3(8.0, 10.4, 12.0))
 	# Central entrance pavilion: big arch, three storeys, pediment, canopy.
 	c.plaster.box(centre, Vector3(0, 6.5, 7.0), Vector3(18.0, 13.0, 14.0), white, 63 & ~32)
@@ -459,17 +567,49 @@ func _dress_station() -> void:
 	c.plaster.quad(centre * Vector3(-9.5, 13.0, -0.2), centre * Vector3(9.5, 13.0, -0.2), centre * Vector3(0.0, 15.8, -0.2), centre * Vector3(0.0, 15.8, -0.2), white)  # pediment
 	c.plaster.quad(centre * Vector3(-9.5, 13.0, -0.2), centre * Vector3(0.0, 15.8, -0.2), centre * Vector3(0.0, 15.8, 8.0), centre * Vector3(-9.5, 13.0, 8.0), roof)
 	c.plaster.quad(centre * Vector3(0.0, 15.8, -0.2), centre * Vector3(9.5, 13.0, -0.2), centre * Vector3(9.5, 13.0, 8.0), centre * Vector3(0.0, 15.8, 8.0), roof.darkened(0.08))
-	# Entrance canopy (concrete cantilever) over the steps.
-	c.plaster.box(centre, Vector3(0, 4.6, -2.2), Vector3(14.0, 0.3, 4.6), white.darkened(0.05))
-	for sx: float in [-6.5, 6.5]:
-		c.metal.cylinder(centre, Vector3(sx, 2.3, -4.2), 0.12, 4.6, 8, ArtPalette.CONCRETE)
-	c.plaster.box(centre, Vector3(0, 0.25, -1.0), Vector3(12.0, 0.2, 2.0), ArtPalette.CONCRETE)  # steps
+	# v0.03B1 portico: paired columns carrying a deep entablature over the
+	# steps; the entrance arch behind falls into dark shadow.
+	c.plaster.box(centre, Vector3(0, 3.5, 3.2), Vector3(7.0, 7.0, 0.1), Color(0.06, 0.055, 0.05))  # deep entrance shadow
+	c.plaster.box(centre, Vector3(0, 7.6, -2.6), Vector3(16.0, 1.3, 5.6), white)  # entablature
+	c.plaster.box(centre, Vector3(0, 8.35, -2.6), Vector3(16.6, 0.25, 5.9), white.lightened(0.05))  # cornice
+	for k in 6:
+		var px := -6.9 + k * 2.76
+		for pz: float in [-5.0, -3.6]:
+			c.plaster.cylinder(centre, Vector3(px, 3.5, pz), 0.36, 6.9, 12, white.lightened(0.03), true, 0.31)
+			c.plaster.box(centre, Vector3(px, 7.0, pz), Vector3(0.95, 0.22, 0.95), white.lightened(0.06))  # capital
+			c.plaster.box(centre, Vector3(px, 0.3, pz), Vector3(0.95, 0.42, 0.95), white.darkened(0.05))  # base
+			_proxy(building_body, centre, Vector3(px, 3.5, pz), Vector3(0.8, 7.0, 0.8))
+	for sx: float in [-1.0, 1.0]:  # flanking arches into the concourse, dark inside
+		c.plaster.arch_panel(centre * Transform3D(Basis.IDENTITY, Vector3(sx * 6.2, 0, -0.03)), 4.4, 5.5, 3.2, 3.8, white, 8, Color(0.08, 0.07, 0.065))
+	# Clock tower over the pavilion: the silhouette that says "station".
+	var tower := centre * Transform3D(Basis.IDENTITY, Vector3(0, 13.0, 4.0))
+	c.plaster.box(tower, Vector3(0, 4.0, 0), Vector3(5.6, 8.0, 5.6), white)
+	c.plaster.box(tower, Vector3(0, 8.2, 0), Vector3(6.2, 0.4, 6.2), white.lightened(0.05))
+	c.plaster.box(tower, Vector3(0, 0.3, 0), Vector3(6.2, 0.6, 6.2), white.darkened(0.04))
+	for face in 4:
+		var fxf := tower * Transform3D(Basis(Vector3.UP, face * PI * 0.5), Vector3.ZERO)
+		c.plaster.cylinder(fxf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 5.4, -2.82)), Vector3.ZERO, 1.25, 0.08, 20, Color(0.96, 0.95, 0.9))
+		c.plaster.cylinder(fxf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 5.4, -2.84)), Vector3.ZERO, 1.38, 0.05, 20, ArtPalette.METAL_DARK)
+		c.metal.box(fxf, Vector3(0.25, 5.55, -2.9), Vector3(0.06, 0.75, 0.02), ArtPalette.METAL_DARK)  # hands ~10:45
+		c.metal.box(fxf * Transform3D(Basis(Vector3.FORWARD, 1.2), Vector3(0, 5.4, -2.9)), Vector3(0, 0.25, 0), Vector3(0.06, 0.55, 0.02), ArtPalette.METAL_DARK)
+		for ax: float in [-1.4, 0.0, 1.4]:
+			c.glass.box(fxf, Vector3(ax, 2.2, -2.82), Vector3(0.7, 1.9, 0.04), ArtPalette.WINDOW_DARK)
+	var apex := tower * Vector3(0, 11.2, 0)
+	for face in 4:
+		var a0 := tower * Transform3D(Basis(Vector3.UP, face * PI * 0.5), Vector3.ZERO) * Vector3(-3.1, 8.4, -3.1)
+		var a1 := tower * Transform3D(Basis(Vector3.UP, face * PI * 0.5), Vector3.ZERO) * Vector3(3.1, 8.4, -3.1)
+		c.plaster.tri(a0, apex, a1, roof.darkened(0.05 * face))
+	c.metal.cylinder(Transform3D.IDENTITY, apex + Vector3(0, 0.8, 0), 0.06, 1.6, 6, ArtPalette.METAL_DARK)  # finial
+	_proxy(building_body, tower, Vector3(0, 4.0, 0), Vector3(5.6, 8.0, 5.6))
+	for k in 3:  # steps
+		c.plaster.box(centre, Vector3(0, 0.08 + k * 0.12, -1.6 + k * 0.4), Vector3(15.0, 0.16 + k * 0.12, 1.2 - k * 0.3), ArtPalette.CONCRETE.lightened(0.1))
 	_proxy(building_body, centre, Vector3(0, 6.5, 7.0), Vector3(18.0, 13.0, 14.0))
 	stats["buildings"] += 1
 	# Station identity sign (location identifiers, not commercial branding).
 	var uv := atlas.add({"px": Vector2i(640, 176), "bg": Color(0.1, 0.22, 0.45), "border": Color(0.95, 0.85, 0.4),
 			"lines": [["COLOMBO FORT", 56, Color(1, 1, 1)], ["කොළඹ කොටුව", 40, Color(1, 0.92, 0.6), false], ["கொழும்பு கோட்டை", 36, Color(1, 0.92, 0.6), false]]})
-	_sign_quad(centre * Transform3D(Basis.IDENTITY, Vector3(0, 6.2, -4.55)), Vector2(9.0, 2.5), uv)
+	_sign_quad(centre * Transform3D(Basis.IDENTITY, Vector3(0, 7.6, -5.42)), Vector2(10.0, 1.15), uv)
+	_sign_quad(centre * Transform3D(Basis.IDENTITY, Vector3(0, 10.4, -0.25)), Vector2(9.0, 2.5), uv)
 	var uv2 := atlas.add({"px": Vector2i(320, 72), "bg": Color(0.95, 0.94, 0.9), "border": Color(0.1, 0.22, 0.45),
 			"lines": [["TICKETS • ප්‍රවේශපත් • பயணச்சீட்டு", 22, Color(0.1, 0.22, 0.45), false]]})
 	for half: float in [-1.0, 1.0]:
@@ -597,11 +737,17 @@ func _spawn_parked() -> void:
 	for entry: Array in _parked:
 		var cls: TrafficVehicleClass = classes[entry[0]]
 		var xf: Transform3D = entry[1]
-		var mi := MeshInstance3D.new()
-		mi.name = "Parked_%s" % entry[0]
-		mi.mesh = TrafficArt.mesh_for(cls, entry[2])
-		mi.transform = xf
-		mi.visibility_range_end = 110.0
-		add_child(mi)
+		if not _lane_clear(xf.origin, maxf(cls.length, cls.width) * 0.5):
+			continue
+		# Baked into the chunk (no extra instances / draw calls): body paint
+		# rides the metal surface, tyres and trim the plaster, lamps the lights.
+		var q := TrafficArt.parts_for(cls, entry[2])
+		var c := chunks.at(xf.origin)
+		c.metal.append(q.paint, xf)
+		c.plaster.append(q.trim, xf)
+		c.plaster.append(q.rubber, xf)
+		c.glass.append(q.glass, xf)
+		c.metal.append(q.chrome, xf)
+		c.lights.append(q.lamps, xf)
 		_proxy(prop_body, xf, Vector3(0, cls.height * 0.5, 0), Vector3(cls.width, cls.height, cls.length))
 		stats["parked_vehicles"] += 1

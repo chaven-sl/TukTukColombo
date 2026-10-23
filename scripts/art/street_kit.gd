@@ -28,54 +28,54 @@ static func umbrella(c: DistrictChunks.Builders, pos: Vector3, color: Color, r: 
 
 
 static func stall(c: DistrictChunks.Builders, xf: Transform3D, goods: int, rng: RandomNumberGenerator) -> void:
-	c.plaster.box(xf, Vector3(0, 0.45, 0), Vector3(1.8, 0.9, 0.8), WOOD)
-	c.plaster.box(xf, Vector3(0, 0.92, 0), Vector3(1.9, 0.05, 0.9), WOOD.lightened(0.15))
+	c.wood.box(xf, Vector3(0, 0.45, 0), Vector3(1.8, 0.9, 0.8), WOOD)
+	c.wood.box(xf, Vector3(0, 0.92, 0), Vector3(1.9, 0.05, 0.9), WOOD.lightened(0.15))
 	match goods:
 		0:  # fruit & vegetable heaps
 			for k in 9:
 				var col: Color = [Color(0.95, 0.65, 0.1), Color(0.3, 0.6, 0.2), Color(0.85, 0.2, 0.15), Color(0.95, 0.85, 0.3)][k % 4]
-				c.detail.sphere(xf, Vector3(-0.7 + (k % 5) * 0.35, 1.05, -0.2 + (k / 5) * 0.35), Vector3(0.16, 0.12, 0.16), col, 6, 3)
+				c.goods.sphere(xf, Vector3(-0.7 + (k % 5) * 0.35, 1.05, -0.2 + (k / 5) * 0.35), Vector3(0.16, 0.12, 0.16), col, 6, 3)
 		1:  # textile rolls
 			for k in 7:
 				var col := ArtPalette.pick(ArtPalette.CLOTH, rng)
-				c.detail.cylinder(xf * Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(-0.75 + k * 0.25, 1.1, 0)), Vector3.ZERO, 0.11, 0.8, 6, col)
+				c.goods.cylinder(xf * Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(-0.75 + k * 0.25, 1.1, 0)), Vector3.ZERO, 0.11, 0.8, 6, col)
 		_:  # boxed goods
 			for k in 4:
-				c.detail.box(xf, Vector3(-0.6 + k * 0.4, 1.12, 0), Vector3(0.35, 0.35, 0.5), ArtPalette.pick(ArtPalette.ACCENTS, rng))
+				c.goods.box(xf, Vector3(-0.6 + k * 0.4, 1.12, 0), Vector3(0.35, 0.35, 0.5), ArtPalette.pick(ArtPalette.ACCENTS, rng))
 	umbrella(c, xf * Vector3(0, 0, 0.2), ArtPalette.pick(ArtPalette.ACCENTS, rng), 1.3)
 
 
 ## Hand-pulled Pettah cart: two big spoked wheels, timber bed, long shafts.
 static func handcart(c: DistrictChunks.Builders, xf: Transform3D, cargo: int, rng: RandomNumberGenerator) -> void:
 	var I := xf
-	c.plaster.box(I, Vector3(0, 0.75, 0), Vector3(1.1, 0.08, 2.2), WOOD)
+	c.wood.box(I, Vector3(0, 0.75, 0), Vector3(1.1, 0.08, 2.2), WOOD)
 	for sx: float in [-1.0, 1.0]:
-		c.plaster.box(I, Vector3(sx * 0.53, 0.88, 0), Vector3(0.06, 0.22, 2.2), WOOD.darkened(0.1))
-		c.plaster.box(I, Vector3(sx * 0.42, 0.72, -1.75), Vector3(0.07, 0.07, 1.6), WOOD)  # shafts
+		c.wood.box(I, Vector3(sx * 0.53, 0.88, 0), Vector3(0.06, 0.22, 2.2), WOOD.darkened(0.1))
+		c.wood.box(I, Vector3(sx * 0.42, 0.72, -1.75), Vector3(0.07, 0.07, 1.6), WOOD)  # shafts
 		var wxf := I * Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(sx * 0.62, 0.55, 0.15))
 		c.plaster.cylinder(wxf, Vector3.ZERO, 0.55, 0.07, 14, Color(0.18, 0.15, 0.12), false)
 		c.metal.cylinder(wxf, Vector3.ZERO, 0.08, 0.12, 6, POLE_GREY)
 		for k in 4:  # spokes
-			c.detail.box(wxf * Transform3D(Basis(Vector3.UP, PI * k / 4.0), Vector3.ZERO), Vector3.ZERO, Vector3(1.0, 0.03, 0.03), WOOD)
-	c.plaster.box(I, Vector3(0, 0.35, 0.95), Vector3(0.06, 0.7, 0.06), WOOD)  # stand
+			c.wood.box(wxf * Transform3D(Basis(Vector3.UP, PI * k / 4.0), Vector3.ZERO), Vector3.ZERO, Vector3(1.0, 0.03, 0.03), WOOD)
+	c.wood.box(I, Vector3(0, 0.35, 0.95), Vector3(0.06, 0.7, 0.06), WOOD)  # stand
 	match cargo:
 		1:
 			for k in 6:
-				c.plaster.bevel_box(I, Vector3(-0.25 + (k % 2) * 0.5, 0.98 + (k / 4) * 0.35, -0.6 + (k % 3) * 0.6), Vector3(0.48, 0.38, 0.55), 0.12, ArtPalette.vary(SACK, rng, 0.06))
+				c.goods.bevel_box(I, Vector3(-0.25 + (k % 2) * 0.5, 0.98 + (k / 4) * 0.35, -0.6 + (k % 3) * 0.6), Vector3(0.48, 0.38, 0.55), 0.12, ArtPalette.vary(SACK, rng, 0.06))
 		2:
 			for k in 5:
-				c.plaster.box(I, Vector3(-0.22 + (k % 2) * 0.44, 1.0 + (k / 3) * 0.45, -0.55 + (k % 3) * 0.55), Vector3(0.42, 0.42, 0.5), ArtPalette.vary(CARDBOARD, rng, 0.06))
+				c.goods.box(I, Vector3(-0.22 + (k % 2) * 0.44, 1.0 + (k / 3) * 0.45, -0.55 + (k % 3) * 0.55), Vector3(0.42, 0.42, 0.5), ArtPalette.vary(CARDBOARD, rng, 0.06))
 
 
 static func sacks(c: DistrictChunks.Builders, xf: Transform3D, n: int, rng: RandomNumberGenerator) -> void:
 	for k in n:
-		c.plaster.bevel_box(xf, Vector3((k % 3) * 0.55 - 0.55, 0.22 + (k / 3) * 0.38, (k % 2) * 0.1), Vector3(0.5, 0.42, 0.6), 0.13, ArtPalette.vary(SACK, rng, 0.07))
+		c.goods.bevel_box(xf, Vector3((k % 3) * 0.55 - 0.55, 0.22 + (k / 3) * 0.38, (k % 2) * 0.1), Vector3(0.5, 0.42, 0.6), 0.13, ArtPalette.vary(SACK, rng, 0.07))
 
 
 static func boxes(c: DistrictChunks.Builders, xf: Transform3D, n: int, rng: RandomNumberGenerator) -> void:
 	for k in n:
 		var s := rng.randf_range(0.35, 0.55)
-		c.detail.box(xf, Vector3((k % 2) * 0.55 - 0.27, s * 0.5 + (k / 2) * 0.45, rng.randf_range(-0.1, 0.1)), Vector3(s, s * 0.9, s), ArtPalette.vary(CARDBOARD, rng, 0.08))
+		c.goods.box(xf, Vector3((k % 2) * 0.55 - 0.27, s * 0.5 + (k / 2) * 0.45, rng.randf_range(-0.1, 0.1)), Vector3(s, s * 0.9, s), ArtPalette.vary(CARDBOARD, rng, 0.08))
 
 
 static func stools(c: DistrictChunks.Builders, xf: Transform3D, n: int, color: Color) -> void:
@@ -89,7 +89,7 @@ static func hanging_goods(c: DistrictChunks.Builders, xf: Transform3D, w: float,
 	var n := int(w / 0.35)
 	for k in n:
 		var drop := rng.randf_range(0.5, 1.1)
-		c.detail.box(xf, Vector3(-w * 0.5 + (k + 0.5) * w / n, 2.73 - drop * 0.5, -0.4), Vector3(0.22, drop, 0.04), ArtPalette.pick(ArtPalette.CLOTH, rng))
+		c.fabric.box(xf, Vector3(-w * 0.5 + (k + 0.5) * w / n, 2.73 - drop * 0.5, -0.4), Vector3(0.22, drop, 0.04), ArtPalette.pick(ArtPalette.CLOTH, rng))
 
 
 static func bollard(c: DistrictChunks.Builders, pos: Vector3, striped: bool) -> void:

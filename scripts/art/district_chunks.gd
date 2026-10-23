@@ -18,10 +18,18 @@ class Builders:
 	var fabric := ArtMesh.new()
 	var metal := ArtMesh.new()
 	var detail := ArtMesh.new()
+	## v0.03B1 material separation for clutter: carts/tables, sacks/boxes,
+	## and the static background crowd (all in the Detail layer: no shadow,
+	## culled at the clutter range).
+	var wood := ArtMesh.new()
+	var goods := ArtMesh.new()
+	var crowd := ArtMesh.new()
 	var lights := ArtMesh.new()
 	var signs := ArtMesh.new()
 
 var cells: Dictionary = {}  # Vector2i -> Builders
+## Vertices of baked background-crowd figures (diagnostics).
+var crowd_figures := 0
 var arch_range := 170.0
 ## Far/background batches (skyline): long range, no shadows.
 var cast_shadows := true
@@ -43,7 +51,7 @@ func commit(parent: Node3D, sign_material: Material) -> void:
 		var b: Builders = cells[key]
 		# Re-centre on the cell so visibility ranges measure from the cell.
 		var centre := Vector3((key.x + 0.5) * CELL, 0.0, (key.y + 0.5) * CELL)
-		for m: ArtMesh in [b.plaster, b.glass, b.fabric, b.metal, b.detail, b.lights, b.signs]:
+		for m: ArtMesh in [b.plaster, b.glass, b.fabric, b.metal, b.detail, b.wood, b.goods, b.crowd, b.lights, b.signs]:
 			m.translate(-centre)
 		var arch := ArrayMesh.new()
 		b.plaster.commit(ArtMaterials.get_material(&"plaster"), arch)
@@ -53,12 +61,17 @@ func commit(parent: Node3D, sign_material: Material) -> void:
 		_instance(parent, "Arch_%d_%d" % [key.x, key.y], arch, cast_shadows, arch_range, centre)
 		var detail := ArrayMesh.new()
 		b.detail.commit(ArtMaterials.get_material(&"wire"), detail)
+		b.wood.commit(ArtMaterials.get_material(&"wood"), detail)
+		b.goods.commit(ArtMaterials.get_material(&"cardboard"), detail)
+		b.crowd.commit(ArtMaterials.get_material(&"fabric"), detail)
+		crowd_figures += b.crowd.vertex_count()
 		_instance(parent, "Detail_%d_%d" % [key.x, key.y], detail, false, detail_range, centre)
 		_instance(parent, "Lights_%d_%d" % [key.x, key.y], b.lights.commit(ArtMaterials.get_material(&"emissive")), false, detail_range * 1.5, centre)
 		if sign_material != null:
 			_instance(parent, "Signs_%d_%d" % [key.x, key.y], b.signs.commit(sign_material), false, arch_range * 0.6, centre)
 		triangles += b.plaster.triangle_count() + b.glass.triangle_count() + b.fabric.triangle_count() + b.metal.triangle_count() \
-				+ b.detail.triangle_count() + b.lights.triangle_count() + b.signs.triangle_count()
+				+ b.detail.triangle_count() + b.wood.triangle_count() + b.goods.triangle_count() + b.crowd.triangle_count() \
+				+ b.lights.triangle_count() + b.signs.triangle_count()
 	cells.clear()
 
 
