@@ -1,6 +1,6 @@
 # TukTuk Colombo — working instructions
 
-Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03A2 — world containment + crash consequences + pedestrian evasion + HUD safe areas** (complete, awaiting owner Android playtest). v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
+Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03B — Fort–Pettah Gateway** (first production-quality art + audio vertical slice; awaiting owner visual/playtest approval). The game boots into `scenes/districts/fort_pettah/fort_pettah_slice.tscn`; the greybox `prototype_main.tscn` stays for regression tests. v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
 
 ## Repository identity
 
@@ -38,7 +38,12 @@ tools/run_tests.sh
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/hud_safe_area_test.tscn   # HUD in safe area, 5 ratios x 6 cutouts
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/world_containment_test.tscn   # containment, damage, recovery, props
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/pavement_safety_test.tscn   # pedestrian emergency evasion
-/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction | --incidents | --offroad]
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/fort_pettah_test.tscn   # v0.03B art/presentation/audio checks
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction | --incidents | --offroad | --fort-pettah]
+# Fort–Pettah quality-gate screenshots (windowed) → user://test_results/screens/v003b_gate_*.png
+/Applications/Godot.app/Contents/MacOS/Godot --path . --resolution 1280x720 res://tests/scenarios/fort_pettah_screens.tscn -- --gates
+# Regenerate the procedural first-pass audio (numpy) → assets/audio/sfx/
+python3 tools/audiogen/generate_audio.py
 # Android (debug only; see docs/android_setup.md)
 tools/android_preflight.sh && tools/export_android_debug.sh   # → builds/android/tuktukcolombo-debug.apk (git-ignored)
 tools/install_android_debug.sh                                # needs an adb device; never uninstalls
@@ -70,6 +75,8 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 - **HUD lives in the safe area.** Every HUD layer builds under `HudSafeArea`; banners only via `NotificationPresenter` (priorities; CRITICAL suppresses score popups). Text wraps with max lines — never fixed widths that overflow.
 - **One human input source.** Keyboard (`PlayerInputSource`) or touch (`TouchInputSource`), chosen once by `InputMode`; both only write `VehicleInputState`. Touch taps reuse existing paths (horn event, `RideManager.request_accept()`, `GameState.set_paused()`). Android Back pauses/resumes and never quits.
 - **Android signing.** Debug keystore only (per-machine editor setting). Never create/commit a release keystore or store signing config without explicit approval. Package `com.chavensl.tuktukcolombo` is provisional.
+- **Art follows physics (v0.03B).** Collision and visual geometry are separate: district art is merged visual chunks (`DistrictChunks`) + simple box proxies (`BuildingProxies`/`PropProxies`/`ForecourtProxies`); vehicles are physics root + `Visual/HeroArt` / `Body`; people are `HumanAgent` + `CharacterRig`. Art never adds colliders or changes mass/CoM. All art is procedural GDScript (no downloads, no Blender); rules in `docs/art_bible.md`, budgets in `docs/fort_pettah_art_budget.md`.
+- **Audio is presentation (v0.03B).** `DistrictAudio` reads telemetry + EventBus hooks only; buses Vehicle/Traffic/Ambience/UI (`default_bus_layout.tres`); fixed voice pools, range limits, cooldowns; sounds are original procedural WAVs from `tools/audiogen/`. No music.
 - **Debuggable.** F1 overlay / F2 traffic / F3 vehicle; debug code lives in `scripts/debug/` and is removable.
 
 ## Directory rules
@@ -80,14 +87,14 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 | `data/<domain>/` | Resource **class** scripts (schemas) |
 | `resources/<domain>/` | Resource **instances** (`.tres`) |
 | `scenes/<domain>/` | scenes; a scene's root script may sit beside it |
-| `scripts/<domain>/` | runtime code: `player camera traffic road world humans rides navigation scoring performance ui input platform debug utilities` |
+| `scripts/<domain>/` | runtime code: `player camera traffic road world humans rides navigation scoring performance ui input platform debug utilities art audio districts` |
 | `locale/` | `en.po si.po ta.po` |
 | `tests/unit/` | headless logic tests (`test_*.gd`, extend `tests/test_case.gd`) |
 | `tests/scenarios/` | scene-based simulation tests (autopilot lives in `scripts/debug/` so the device perf test can use it) |
 | `tools/` | test runner and Android scripts (excluded from exports) |
 | `builds/android/` | local APK output — git-ignored, never committed |
 | `docs/` | design/technical docs and reports |
-| `assets/` | original placeholder assets only |
+| `assets/` | original assets only: `fonts/` (Noto, SIL OFL, licences beside them), `audio/sfx/` (procedural) |
 
 ## Performance requirements
 
@@ -119,20 +126,21 @@ All speeds presented to people — docs, reports, test output, debug HUD, tuning
 
 ## Current phase & next step
 
-Delivered: v0.01, v0.01a, v0.02, v0.03A (device baseline passed ~59 FPS), v0.03A1, v0.03A2 (`docs/PROTOTYPE_V003A2_REPORT.md`). **Next: owner installs the v0.03A2 debug APK and answers the 10 questions in that report.** Do not start v0.03B (art, audio, garage, repair costs, insurance, police/fines/wanted, economy, more passengers, weather, map expansion) without approval.
+Delivered: v0.01, v0.01a, v0.02, v0.03A, v0.03A1, v0.03A2, v0.03B Fort–Pettah Gateway (`docs/PROTOTYPE_V003B_REPORT.md`). **Next: owner installs the v0.03B debug APK, judges the look/sound and answers the 10 questions in that report.** Do not start economy, garage, progression, monetisation, police, weather, day/night, map expansion or v0.04 without approval.
 
 ## Known technical debt
 
 - Road geometry is generated at runtime (not `@tool`), so `test_track.tscn` looks empty in the editor.
 - Hand-written `.tscn/.tres` without UIDs (Godot adds them when re-saved in the editor).
 - Traffic: no lane changes; treats the player as an obstacle only in a straight line ahead; kinematic traffic can shove the player; yields only to occupied crossings.
-- Pedestrians: placeholder figures, no animation; uneven density (no sidewalks on the loop's east side). Pickups now face legal directions, so some quoted routes are long laps (e.g. careful passenger 0.9–1.2 km).
+- v0.03B art is procedural first-pass (vertex colour, no hand-modelled assets); audio is synthesised placeholder (no real recordings, no VO); Sinhala/Tamil sign/locale strings need native review.
+- Pedestrians: uneven density (no sidewalks on the loop's east side). Pickups now face legal directions, so some quoted routes are long laps (e.g. careful passenger 0.9–1.2 km).
 - Android: debug APK only (80 MB, mostly the debug engine library); graphics tier not auto-selected per device; no haptics. v0.03A1 steering/GPS/incidents not yet judged on a phone.
-- Incidents: drivers are placeholder capsules (no exit-door/argue animation, no audio); the chase camera can hide a driver in front of the tuk; door side is fixed to the vehicle's right.
+- Incidents: driver exit/argue is procedural rig animation with placeholder audio; the chase camera can hide a driver in front of the tuk; door side is fixed to the vehicle's right.
 - GPS: turns only at junction connectors; the test track has few junctions, so most instructions are PICKUP/DESTINATION distances; ribbon is prototype styling.
 - Near-miss footprint is the 1.3 × 2.6 m bounding box while physics uses a tapered hull (nose passes scored slightly conservatively).
 - Roll-state signal (`TukController.roll_state_changed`) has no player-facing feedback yet.
-- Sinhala/Tamil: no shipped font with those glyphs; strings are placeholders needing native review.
+- Sinhala/Tamil: Noto fonts shipped (v0.03B); strings are placeholders needing native review.
 - Performance numbers are from an Apple M2 only; real-device baseline pending (`tools/android_perf_test.sh`).
 - HUD built in code rather than in an editable scene.
 - World: the long straight's west side has no raised pavement; the open lots inside the loop are large and empty; district ring is grey-box; props are not physics bodies (by design); no permanent vehicle deformation; evasion/dive are placeholder hop/lean (no animation).
