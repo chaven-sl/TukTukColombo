@@ -79,70 +79,146 @@ turn_angle_deg = 90.0
 lane_width = 2.9
 median_width = 0.2
 shoulder_width = 0.4
-zone = &"market"
+zone = &"olcott"
 
-[node name="MarketApproach" type="Node3D" parent="MainLoop"]
+[node name="MarketGate" type="Node3D" parent="MainLoop"]
+script = ExtResource("4_ix")
+size = 16.0
+green_through = 12.0
+green_cross = 6.0
+
+[node name="MarketCoreA" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
-length = 122.0
-lane_width = 2.9
-median_width = 0.2
-shoulder_width = 0.4
+length = 34.0
+lane_width = 2.85
+median_width = 0.15
+shoulder_width = 0.35
+lanes_per_direction = 1
 sidewalk_left = true
 sidewalk_right = true
 sidewalk_width = 3.0
-crossing_s = PackedFloat32Array(42, 96)
-crossing_styles = PackedInt32Array(1, 0)
 zone = &"market"
-bus_spawn_scale = 0.15
+bus_spawn_scale = 0.0
+crossing_s = PackedFloat32Array(18)
+crossing_styles = PackedInt32Array(1)
+pedestrian_density = 2.0
+
+[node name="MarketBayIn" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 6.0
+lane_width = 2.85
+median_width = 0.15
+shoulder_width = 0.35
+shoulder_width_end = 2.4
+lanes_per_direction = 1
+sidewalk_left = true
+sidewalk_right = true
+sidewalk_width = 3.0
+zone = &"market"
+bus_spawn_scale = 0.0
+pedestrian_density = 2.0
+
+[node name="MarketBay" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 22.0
+lane_width = 2.85
+median_width = 0.15
+shoulder_width = 2.4
+lanes_per_direction = 1
+sidewalk_left = true
+sidewalk_right = true
+sidewalk_width = 3.0
+zone = &"market"
+bus_spawn_scale = 0.0
+pedestrian_density = 2.0
+
+[node name="MarketBayOut" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 6.0
+lane_width = 2.85
+median_width = 0.15
+shoulder_width = 2.4
+shoulder_width_end = 0.35
+lanes_per_direction = 1
+sidewalk_left = true
+sidewalk_right = true
+sidewalk_width = 3.0
+zone = &"market"
+bus_spawn_scale = 0.0
+pedestrian_density = 2.0
+
+[node name="MarketCoreB" type="Node3D" parent="MainLoop"]
+script = ExtResource("3_seg")
+length = 38.0
+lane_width = 2.85
+median_width = 0.15
+shoulder_width = 0.35
+lanes_per_direction = 1
+sidewalk_left = true
+sidewalk_right = true
+sidewalk_width = 3.0
+zone = &"market"
+bus_spawn_scale = 0.0
+crossing_s = PackedFloat32Array(26)
+crossing_styles = PackedInt32Array(0)
 pedestrian_density = 2.0
 
 [node name="MarketTaperOut" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
 length = 15.0
-lane_width = 2.9
-lane_width_end = 3.3
-median_width = 0.2
-median_width_end = 0.4
-shoulder_width = 0.4
-shoulder_width_end = 0.8
+lane_width = 2.85
+lane_width_end = 3.2
+median_width = 0.15
+median_width_end = 0.2
+shoulder_width = 0.35
+shoulder_width_end = 1.6
+lanes_per_direction = 1
 sidewalk_left = true
 sidewalk_right = true
 sidewalk_width = 3.0
 zone = &"market"
-bus_spawn_scale = 0.3
+bus_spawn_scale = 0.0
 pedestrian_density = 1.6
 
 [node name="MarketLower" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
 length = 55.0
-lane_width = 3.3
-shoulder_width = 0.8
+lane_width = 3.2
+median_width = 0.2
+shoulder_width = 1.6
+lanes_per_direction = 1
 sidewalk_left = true
 sidewalk_right = true
 sidewalk_width = 3.0
 zone = &"market"
-bus_spawn_scale = 0.5
+bus_spawn_scale = 0.1
 pedestrian_density = 1.5
 
 [node name="MarketCorner" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
 length = 39.2699
 turn_angle_deg = 90.0
+lanes_per_direction = 1
 lane_width = 3.3
+median_width = 0.2
 shoulder_width = 0.8
 zone = &"junction"
+bus_spawn_scale = 0.3
 
 [node name="JunctionApproach" type="Node3D" parent="MainLoop"]
 script = ExtResource("3_seg")
 length = 50.0
+lanes_per_direction = 1
 lane_width = 3.3
-shoulder_width = 0.8
+median_width = 0.2
+shoulder_width = 1.2
 sidewalk_left = true
 sidewalk_right = true
 sidewalk_width = 3.0
 crossing_s = PackedFloat32Array(38)
 crossing_styles = PackedInt32Array(0)
 zone = &"junction"
+bus_spawn_scale = 0.3
 pedestrian_density = 1.4
 
 [node name="Junction" type="Node3D" parent="MainLoop"]
@@ -193,6 +269,27 @@ zone = &"market"
 bus_spawn_scale = 0.0
 pedestrian_density = 1.8
 
+[node name="SpiceLaneArm" type="Node3D" parent="."]
+script = ExtResource("2_chain")
+attach_intersection = NodePath("../MainLoop/MarketGate")
+attach_arm = 3
+end_cap_tunnel = true
+
+[node name="SpiceLane" type="Node3D" parent="SpiceLaneArm"]
+script = ExtResource("3_seg")
+length = 56.0
+lanes_per_direction = 1
+lane_width = 2.8
+median_width = 0.15
+shoulder_width = 0.3
+sidewalk_left = true
+sidewalk_right = true
+sidewalk_width = 2.4
+sidewalk_trim_end = 22.0
+zone = &"market"
+bus_spawn_scale = 0.6
+pedestrian_density = 1.6
+
 [node name="BusStandArm" type="Node3D" parent="."]
 script = ExtResource("2_chain")
 attach_intersection = NodePath("../MainLoop/Junction")
@@ -236,14 +333,14 @@ spot_id = &"pickup_aunty"
 display_name_key = "PLACE_PETTAH_BUS_STAND"
 
 [node name="PickupThrill" type="Marker3D" parent="Pedestrians"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.3, 0.15, -128)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 195.2, 0.15, -126)
 script = ExtResource("6_spot")
 kind = 2
 spot_id = &"pickup_thrill"
 display_name_key = "PLACE_MARKET_LANE"
 
 [node name="DestMarket" type="Marker3D" parent="Pedestrians"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.3, 0.15, -82)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 193.1, 0.15, -94)
 script = ExtResource("6_spot")
 kind = 3
 spot_id = &"dest_market"
@@ -257,7 +354,7 @@ spot_id = &"dest_temple"
 display_name_key = "PLACE_OLCOTT_CORNER"
 
 [node name="DestSouthJunction" type="Marker3D" parent="Pedestrians"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128, 0.15, 33.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128, 0.15, 31.6)
 script = ExtResource("6_spot")
 kind = 3
 spot_id = &"dest_south_junction"
@@ -278,7 +375,7 @@ spot_id = &"group_bus_stop"
 dressing = 1
 
 [node name="WaitShop" type="Marker3D" parent="Pedestrians"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 179.7, 0.15, -105)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 182.9, 0.15, -100)
 script = ExtResource("6_spot")
 spot_id = &"wait_shop"
 

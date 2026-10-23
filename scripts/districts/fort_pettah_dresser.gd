@@ -61,6 +61,7 @@ func dress(p_network: RoadNetwork, p_pedestrians: PedestrianNetwork) -> void:
 	_register_shop_signs()
 	for seg in network.segments:
 		_dress_segment(seg)
+	_dress_market_kerbside()
 	_dress_station()
 	_dress_junction_gantry()
 	_dress_portals()
@@ -120,13 +121,13 @@ func _index_lanes() -> void:
 
 
 ## True if a footprint of radius `r` at `p` stays clear of every lane.
-func _lane_clear(p: Vector3, r: float) -> bool:
+func _lane_clear(p: Vector3, r: float, margin := 0.3) -> bool:
 	var key := Vector2i(floori(p.x / 8.0), floori(p.z / 8.0))
 	for dx in range(-1, 2):
 		for dz in range(-1, 2):
 			var cell: PackedVector3Array = _lane_cells.get(key + Vector2i(dx, dz), PackedVector3Array())
 			for q in cell:
-				if Vector2(q.x - p.x, q.z - p.z).length() < r + q.y + 0.3:
+				if Vector2(q.x - p.x, q.z - p.z).length() < r + q.y + margin:
 					return false
 	return true
 
@@ -416,7 +417,7 @@ func _street_furniture(seg: RoadSegment, side: float) -> void:
 	var zone := seg.zone
 	var s := 8.0 + rng.randf() * 6.0
 	var prev_pole := PackedVector3Array()
-	var pole_spacing := 26.0 if zone == &"market" else 32.0
+	var pole_spacing := 18.0 if zone == &"market" else 32.0  # v0.03B1.1: denser wires over the narrow market
 	while s < seg.length - 6.0:
 		var xf := _frame(seg, s, side, seg.half_width(s) + 0.55)
 		if not _junction_clear(xf.origin) or _near_spot(xf.origin, 3.0):
@@ -434,7 +435,18 @@ func _street_furniture(seg: RoadSegment, side: float) -> void:
 			# Across-the-street wires in the market (the Pettah tangle).
 			if zone == &"market" and side > 0.0:
 				var opposite := _frame(seg, s, -side, seg.half_width(s) + 0.55).origin + Vector3(0, 8.0, 0)
-				c.detail.wire(pts[2], opposite, 1.2, 0.04, Color(0.05, 0.05, 0.05), 8)
+				for k in 3:  # a sagging bundle, not a single line
+					c.detail.wire(pts[mini(k, pts.size() - 1)], opposite + Vector3(0, -k * 0.4, 0), 1.0 + k * 0.35, 0.035, Color(0.05, 0.05, 0.05), 8)
+				# Bunting strung across the street (festival flags, very Colombo).
+				var a := _frame(seg, s + 4.0, side, seg.half_width(s) + 2.6).origin + Vector3(0, 5.8, 0)
+				var b := _frame(seg, s + 6.0, -side, seg.half_width(s) + 2.6).origin + Vector3(0, 5.8, 0)
+				c.detail.wire(a, b, 0.6, 0.02, Color(0.15, 0.15, 0.15), 10)
+				var n := int(a.distance_to(b) / 0.55)
+				for k in n:
+					var t := (k + 0.5) / float(n)
+					var p := a.lerp(b, t) + Vector3.DOWN * 0.6 * 4.0 * t * (1.0 - t)
+					var span := (b - a).normalized() * 0.18
+					c.fabric.tri(p - span, p + span, p + Vector3(0, -0.36, 0), ArtPalette.ACCENTS[k % ArtPalette.ACCENTS.size()])
 			prev_pole = pts
 		else:
 			StreetKit.street_lamp(c, xf.origin + Vector3(0, 0.15, 0), to_road)
@@ -495,6 +507,104 @@ func _street_furniture(seg: RoadSegment, side: float) -> void:
 		var bc := chunks.at(bay.origin)
 		bc.detail.box(bay, Vector3(0, 0.013, 0), Vector3(30.0, 0.005, 0.12), ArtPalette.AWNING_YELLOW, 4)
 		bc.detail.box(bay, Vector3(0, 0.013, -1.25), Vector3(30.0, 0.005, 0.12), ArtPalette.AWNING_YELLOW, 4)
+
+
+# --- v0.03B1.1 Pettah compression: deliberate kerbside pressure ---
+
+func _seg_named(n: String) -> RoadSegment:
+	for sg in network.segments:
+		if sg.name == n:
+			return sg
+	return null
+
+
+## Parked/loading vehicle along the street in a bay or shoulder (offset from
+## the centre line); the footprint check in _spawn_parked keeps it off lanes.
+func _kerb_vehicle(seg: RoadSegment, s: float, side: float, off: float, kind: String, color: int, perpendicular := false) -> void:
+	var xf := _frame(seg, s, side, off)
+	var rot := 0.0 if perpendicular else PI * 0.5
+	_parked.append([kind, xf * Transform3D(Basis(Vector3.UP, rot + rng.randf_range(-0.06, 0.06)), Vector3.ZERO), color])
+
+
+## Painted arrow on the asphalt at `xf` (−Z = travel). bend: 0 straight,
+## ±1 = merge arrow kinking toward ±X.
+func _road_arrow(xf: Transform3D, bend: float) -> void:
+	var c := chunks.at(xf.origin)
+	var paint := Color(0.88, 0.87, 0.82)
+	var lift := Vector3(0, 0.022, 0)
+	c.detail.box(xf, Vector3(0, 0.02, 0.6), Vector3(0.16, 0.006, 1.6), paint, 4)
+	var head := xf * Transform3D(Basis(Vector3.UP, -bend * 0.6), Vector3(bend * 0.25, 0, -0.35))
+	if bend != 0.0:
+		c.detail.box(head, Vector3(0, 0.02, -0.25), Vector3(0.16, 0.006, 0.7), paint, 4)
+	var tip := head * Vector3(0, 0, -1.05)
+	c.detail.tri(head * Vector3(-0.42, 0, -0.55) + lift, tip + lift, head * Vector3(0.42, 0, -0.55) + lift, paint)
+
+
+func _dress_market_kerbside() -> void:
+	# Lane reduction cues: merge arrows on the kerb lanes into the gate,
+	# straight arrows once single-lane.
+	for lane in network.lanes:
+		if lane.is_connector:
+			continue
+		var n := lane.points.size()
+		if n < 3:
+			continue
+		var i := int(n * 0.55)
+		var d := (lane.points[mini(i + 1, n - 1)] - lane.points[i]).normalized()
+		var axf := Transform3D(MathUtil.basis_from_forward(d), lane.points[i])
+		if lane.source_name == "OlcottCorner" and lane.lane_index == 1 and lane.end_point().distance_to(_seg_named("MarketCoreA").global_position) < 30.0:
+			_road_arrow(axf, -1.0)  # kerb lane merges toward the centre
+		elif lane.source_name == "MarketCoreA" or lane.source_name == "MarketCoreB":
+			_road_arrow(axf, 0.0)
+	var bay := _seg_named("MarketBay")
+	if bay != null:
+		var off := bay.carriageway_half(11.0) + 1.25
+		# East / side +1: loading van with its stacked boxes and a handcart.
+		_kerb_vehicle(bay, 7.0, 1.0, off, "van", 1)
+		var boxes := _frame(bay, 13.5, 1.0, off)
+		StreetKit.boxes(chunks.at(boxes.origin), boxes * Transform3D(Basis.IDENTITY, Vector3(0, 0.0, 0.2)), 6, rng)
+		_proxy(prop_body, boxes, Vector3(0, 0.45, 0.2), Vector3(1.2, 0.9, 0.9))
+		var cart := _frame(bay, 18.0, 1.0, off + 0.1)
+		StreetKit.handcart(chunks.at(cart.origin), cart * Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3.ZERO), 0, rng)
+		_proxy(prop_body, cart, Vector3(0, 0.9, 0), Vector3(2.4, 1.6, 1.3))
+		# West / side −1: parked tuk, then a motorcycle row nosed to the kerb.
+		_kerb_vehicle(bay, 4.5, -1.0, off, "tuk", 2)
+		for k in 4:
+			_kerb_vehicle(bay, 11.0 + k * 1.0, -1.0, off + 0.15, "motorcycle", k, true)
+	var lower := _seg_named("MarketLower")
+	if lower != null:
+		var loff := lower.carriageway_half(10.0) + 0.8
+		_kerb_vehicle(lower, 8.0, -1.0, loff, "tuk", 3)   # tuk stand
+		_kerb_vehicle(lower, 12.0, -1.0, loff, "tuk", 0)
+		_kerb_vehicle(lower, 16.0, -1.0, loff, "tuk", 4)
+		var works := _frame(lower, 38.0, 1.0, loff)  # small roadworks pen on the far side
+		var wc := chunks.at(works.origin)
+		# Frame: −Z faces the road, X runs along the street.
+		StreetKit.barrier(wc, works * Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.1)), 4.0)
+		for k in 4:
+			wc.detail.cylinder(works, Vector3(-1.6 + k * 1.05, 0.3, -0.4), 0.17, 0.6, 6, Color(0.95, 0.5, 0.1), true, 0.04)
+		wc.plaster.box(works, Vector3(0.6, 0.25, 0.45), Vector3(1.4, 0.5, 0.6), Color(0.7, 0.62, 0.48))
+		_proxy(prop_body, works, Vector3(0, 0.5, 0.0), Vector3(4.2, 1.0, 1.2))
+	# Market core: merchandise pushed to the pavement edge, kerb-side carts.
+	for n in ["MarketCoreA", "MarketCoreB"]:
+		var seg := _seg_named(n)
+		if seg == null:
+			continue
+		var s := 5.0
+		var side := 1.0
+		while s < seg.length - 4.0:
+			var e := _frame(seg, s, side, seg.half_width(s) + 0.75)
+			if _junction_clear(e.origin) and not _near_spot(e.origin, 3.5) and _lane_clear(e.origin, 0.6):
+				var ec := chunks.at(e.origin)
+				if rng.randf() < 0.35:
+					StreetKit.handcart(ec, e * Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(0, 0.15, -0.1)), rng.randi() % 3, rng)
+					_proxy(prop_body, e, Vector3(0, 0.9, 0), Vector3(2.4, 1.6, 1.0))
+				else:
+					StreetKit.sacks(ec, e * Transform3D(Basis.IDENTITY, Vector3(0, 0.15, 0)), rng.randi_range(2, 4), rng)
+					_proxy(prop_body, e, Vector3(0, 0.45, 0), Vector3(1.4, 0.9, 0.7))
+				stats["props"] += 1
+			s += rng.randf_range(6.0, 9.0)
+			side = -side
 
 
 # --- the Fort station landmark ---
@@ -662,6 +772,7 @@ func _dress_portals() -> void:
 	var labels := {
 		"MarketLaneArm": ["PETTAH MARKET ARCADE", "පිටකොටුව වෙළඳපොළ", "புறக்கோட்டை சந்தை"],
 		"BusStandArm": ["CENTRAL BUS STAND", "මධ්‍යම බස් නැවතුම්පොළ", "மத்திய பேருந்து நிலையம்"],
+		"SpiceLaneArm": ["SPICE LANE", "කුළුබඩු වීදිය", "மசாலா வீதி"],
 	}
 	for chain in network.chains:
 		var portal := chain.get_node_or_null("TunnelPortal") as Node3D
@@ -684,8 +795,8 @@ func _dress_portals() -> void:
 		for k in int(w / 3.0):
 			c.glass.box(xf, Vector3(-w * 0.5 + 1.5 + k * 3.0, 10.4, -0.03), Vector3(1.2, 1.8, 0.04), ArtPalette.WINDOW_DARK)
 		var lab: Array = labels.get(String(chain.name), ["PETTAH", "පිටකොටුව", "புறக்கோட்டை"])
-		var uv := atlas.add({"px": Vector2i(512, 128), "bg": Color(0.8, 0.12, 0.1), "border": Color(1, 0.9, 0.5),
-				"lines": [[lab[0], 34, Color(1, 1, 1)], [lab[1] + "  •  " + lab[2], 22, Color(1, 0.93, 0.7), false]]})
+		var uv := atlas.add({"px": Vector2i(384, 96), "bg": Color(0.8, 0.12, 0.1), "border": Color(1, 0.9, 0.5),
+				"lines": [[lab[0], 28, Color(1, 1, 1)], [lab[1] + "  •  " + lab[2], 18, Color(1, 0.93, 0.7), false]]})
 		_sign_quad(xf * Transform3D(Basis.IDENTITY, Vector3(0, 7.4, 0)), Vector2(minf(w - 2.0, 10.0), 2.4), uv)
 
 
@@ -737,7 +848,14 @@ func _spawn_parked() -> void:
 	for entry: Array in _parked:
 		var cls: TrafficVehicleClass = classes[entry[0]]
 		var xf: Transform3D = entry[1]
-		if not _lane_clear(xf.origin, maxf(cls.length, cls.width) * 0.5):
+		# Footprint check along the vehicle (bays/shoulders: marked parking may
+		# sit 0.1 m from a lane edge, never on it).
+		var blocked := false
+		for k in 5:
+			var p := xf * Vector3(0, 0, lerpf(-cls.length * 0.4, cls.length * 0.4, k / 4.0))
+			if not _lane_clear(p, cls.width * 0.5, 0.1):
+				blocked = true
+		if blocked:
 			continue
 		# Baked into the chunk (no extra instances / draw calls): body paint
 		# rides the metal surface, tyres and trim the plaster, lamps the lights.
