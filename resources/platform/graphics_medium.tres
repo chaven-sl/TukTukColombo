@@ -8,5 +8,6 @@ tier = 1
 display_name_key = "GRAPHICS_MEDIUM"
 sun_shadows = true
 shadow_max_distance = 28.0
-render_scale = 0.75
+render_scale = 0.67
+scaling_mode = 1
 max_fps = 60

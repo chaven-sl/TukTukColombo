@@ -13,6 +13,9 @@ enum Tier { LOW, MEDIUM, HIGH }
 ## 3D render resolution scale (1.0 = native). UI is never scaled down.
 @export_range(0.5, 1.0) var render_scale := 1.0
 @export var msaa_3d := Viewport.MSAA_DISABLED
+## v0.03B1: upscaler for render_scale < 1 (FSR 1.0 is sharper than bilinear
+## at the same measured cost on the reference Mali-G610).
+@export var scaling_mode := Viewport.SCALING_3D_MODE_BILINEAR
 ## 0 = uncapped (vsync decides). 30 for devices that can't hold 60.
 @export var max_fps := 60
 @export var fog_enabled := true
@@ -20,6 +23,7 @@ enum Tier { LOW, MEDIUM, HIGH }
 
 func apply(viewport: Viewport, sun: DirectionalLight3D, environment: Environment) -> void:
 	viewport.scaling_3d_scale = render_scale
+	viewport.scaling_3d_mode = scaling_mode
 	viewport.msaa_3d = msaa_3d
 	Engine.max_fps = max_fps
 	if sun != null:

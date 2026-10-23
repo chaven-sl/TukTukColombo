@@ -193,8 +193,8 @@ func _log_runtime_settings() -> void:
 	var vsync_names := ["DISABLED", "ENABLED", "ADAPTIVE", "MAILBOX"]
 	var vsync := DisplayServer.window_get_vsync_mode()
 	var cap := Engine.max_fps if Engine.max_fps > 0 else int(refresh)
-	print("[GraphicsRuntime] tier=%s profile_shadow_distance=%.0f max_fps=%d render_scale=%.2f shadow_distance=%.0f sun_shadows=%s fog=%s sky=%s ambient=%s reflections=%s viewport=%dx%d render_3d=%dx%d window=%dx%d screen_refresh_hz=%.1f vsync=%s renderer=%s physics_ticks=%d process_mode=%d effective_cap=%d" % [
-		GraphicsProfile.Tier.keys()[graphics_tier], profile.shadow_max_distance, Engine.max_fps, vp.scaling_3d_scale,
+	print("[GraphicsRuntime] tier=%s profile_shadow_distance=%.0f max_fps=%d render_scale=%.2f scaling_mode=%s shadow_distance=%.0f sun_shadows=%s fog=%s sky=%s ambient=%s reflections=%s viewport=%dx%d render_3d=%dx%d window=%dx%d screen_refresh_hz=%.1f vsync=%s renderer=%s physics_ticks=%d process_mode=%d effective_cap=%d" % [
+		GraphicsProfile.Tier.keys()[graphics_tier], profile.shadow_max_distance, Engine.max_fps, vp.scaling_3d_scale, ["BILINEAR", "FSR", "FSR2", "METALFX_SPATIAL", "METALFX_TEMPORAL"][vp.scaling_3d_mode],
 		sun.directional_shadow_max_distance, sun.shadow_enabled, env.fog_enabled,
 		env.background_mode == Environment.BG_SKY, ["BG", "DISABLED", "COLOR", "SKY"][env.ambient_light_source],
 		["BG", "DISABLED", "SKY"][env.reflected_light_source],

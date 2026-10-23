@@ -29,10 +29,10 @@ static func make_environment() -> Environment:
 	# The sky stays as the visible background only.
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.78, 0.78, 0.76)  # warm street bounce + pale sky fill
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.46  # v0.03B1: less flat fill, stronger sun → shadow contrast
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.08
+	env.tonemap_exposure = 1.04
 	env.tonemap_white = 5.0
 	# Humid haze: light depth fog, a touch warm.
 	env.fog_enabled = true
@@ -51,7 +51,7 @@ static func make_sun() -> DirectionalLight3D:
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.light_color = SUN_COLOR
-	sun.light_energy = 1.75
+	sun.light_energy = 1.95
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 55.0
