@@ -66,4 +66,28 @@ extends Resource
 @export var danger_cooldown := 3.0
 ## PEDESTRIAN_IMPACT: footprint overlap (person radius, m) above this speed.
 @export var person_radius := 0.28
+
+@export_group("Emergency evasion (v0.03A2, km/h)")
+## Off only in rule tests that must force an unavoidable contact/near pass.
+@export var emergency_evasion := true
+## Projected-threat corridor: a person within (tuk half width + this) of the
+## tuk's predicted path, before the closest approach, is threatened.
+@export var threat_corridor_margin := 1.3
+## How far ahead the tuk's path is projected (s): on the road / when the tuk
+## is up on a pavement (people notice a tuk mounting the kerb much earlier).
+@export var threat_horizon_s := 1.4
+@export var pavement_threat_horizon_s := 2.0
+## Human-awareness thresholds (not vehicle physics): below evade_min_kmh a
+## mild step back; up to dive_min_kmh a clear evasive run; above, an urgent
+## dive aside (also when the closest approach is under dive_ttc_s away).
+@export var evade_min_kmh := 8.0
+@export var dive_min_kmh := 20.0
+@export var dive_ttc_s := 0.6
+## Escape distance (m) and pace (km/h).
+@export var evade_distance := 3.0
+@export var dive_distance := 4.2
+@export var evade_speed_kmh := 16.0
+@export var dive_speed_kmh := 26.0
+## Pause at the refuge (s) before going back to what they were doing.
+@export var evade_settle_s := Vector2(1.2, 2.0)
 @export var impact_min_speed_kmh := 3.0

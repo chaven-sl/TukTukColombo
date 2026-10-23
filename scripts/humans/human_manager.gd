@@ -37,6 +37,8 @@ var stats_crossings_abandoned := 0
 var stats_danger_events := 0
 var stats_impacts := 0
 var stats_reactions := 0
+var stats_evasions := 0
+var stats_dives := 0
 var last_tick_usec := 0
 var _spawn_timer := 0.0
 var _group_spots_active: Dictionary = {}
@@ -205,7 +207,9 @@ func _physics_process(delta: float) -> void:
 	var i := active.size() - 1
 	while i >= 0:
 		var agent := active[i]
-		if agent.behaviour != null:
+		if agent.state == HumanAgent.State.EVADING:
+			_tick_evade(agent, delta)
+		elif agent.behaviour != null:
 			agent.behaviour.tick(agent, delta, self)
 		agent.update_visual(delta)
 		i -= 1
@@ -342,13 +346,18 @@ func _check_player_safety() -> void:
 	var v2 := Vector2(player_velocity.x, player_velocity.z)
 	var on_raised_surface := xf.origin.y > 0.08
 	var now := SimClock.now()
+	var speed_ms := v2.length()
+	var horizon := config.pavement_threat_horizon_s if on_raised_surface else config.threat_horizon_s
+	var scan := maxf(15.0, speed_ms * horizon + 4.0)
 	for idx in range(active.size() - 1, -1, -1):
 		var a := active[idx]
 		if a.state == HumanAgent.State.RIDING or a.state == HumanAgent.State.BOARDING or not a.visible:
 			continue
 		var p := a.global_position
 		var hp := Vector2(p.x, p.z)
-		if hp.distance_squared_to(c) > 225.0:
+		if hp.distance_squared_to(c) > scan * scan:
+			continue
+		if config.emergency_evasion and speed_kmh >= config.evade_min_kmh and _check_threat(a, hp, c, v2, ext, horizon, speed_kmh):
 			continue
 		var clearance := OrientedRect.point_distance(hp, c, f, ext.x, ext.y) - config.person_radius
 		if clearance <= 0.0 and speed_kmh >= config.impact_min_speed_kmh:
@@ -377,6 +386,140 @@ func _check_player_safety() -> void:
 		if close_pass or sidewalk:
 			var cause := PedestrianEvent.Cause.SIDEWALK_DRIVING if sidewalk and not close_pass else PedestrianEvent.Cause.CLOSE_PASS
 			_emit_danger(a, cause, clearance, speed_kmh)
+
+
+# --- Emergency evasion (v0.03A2) ---
+
+## Projects the tuk's straight-line path `horizon` seconds ahead; a person
+## inside the corridor before the closest approach evades (EVADE) or dives
+## aside (DIVE) — before any contact, never only on touch. Returns true when
+## the person is (now) evading.
+func _check_threat(a: HumanAgent, hp: Vector2, c: Vector2, v2: Vector2, ext: Vector2, horizon: float, speed_kmh: float) -> bool:
+	if a.state == HumanAgent.State.EVADING:
+		return true
+	if not _can_evade(a):
+		return false
+	var to := hp - c
+	var vv := v2.length_squared()
+	if vv < 0.25:
+		return false
+	var t := to.dot(v2) / vv
+	if t <= 0.0 or t > horizon:
+		return false
+	var miss := (to - v2 * t).length()
+	if miss > ext.x + config.threat_corridor_margin:
+		return false
+	var dive := speed_kmh >= config.dive_min_kmh or t < config.dive_ttc_s
+	start_evade(a, Vector3(v2.x, 0.0, v2.y).normalized(), Vector3(c.x, a.global_position.y, c.y), dive)
+	return true
+
+
+func _can_evade(a: HumanAgent) -> bool:
+	match a.state:
+		HumanAgent.State.IDLE, HumanAgent.State.WALKING, HumanAgent.State.WAITING_TO_CROSS, HumanAgent.State.REACTING, \
+		HumanAgent.State.WAITING_FOR_PICKUP, HumanAgent.State.EXITING, HumanAgent.State.EXITING_VEHICLE, \
+		HumanAgent.State.APPROACHING_PLAYER, HumanAgent.State.ARGUING, HumanAgent.State.RETURNING_TO_VEHICLE:
+			return true
+	# CROSSING people keep the v0.02 HURRY (onwards across, not into a lane).
+	return false
+
+
+## Starts an escape away from a threat moving along `dir` from `threat_pos`.
+func start_evade(a: HumanAgent, dir: Vector3, threat_pos: Vector3, dive: bool) -> void:
+	var resume := HumanAgent.State.IDLE
+	match a.role:
+		HumanAgent.Role.PASSENGER:
+			resume = HumanAgent.State.EXITING if a.state == HumanAgent.State.EXITING else HumanAgent.State.WAITING_FOR_PICKUP
+		HumanAgent.Role.TRAFFIC_DRIVER:
+			resume = HumanAgent.State.RETURNING_TO_VEHICLE
+	a.evade_target = pick_evade_target(a.global_position, dir, threat_pos, config.dive_distance if dive else config.evade_distance)
+	a.evade_speed = (config.dive_speed_kmh if dive else config.evade_speed_kmh) / 3.6
+	a.evade_settle = rng.randf_range(config.evade_settle_s.x, config.evade_settle_s.y)
+	a.evade_dive = dive
+	a.evade_resume = resume
+	if a.state == HumanAgent.State.WAITING_TO_CROSS:
+		a.crossing = null
+	if not a.set_state(HumanAgent.State.EVADING):
+		return
+	a.set_reaction(HumanAgent.Reaction.DIVE if dive else HumanAgent.Reaction.EVADE)
+	a.face(Vector3(threat_pos.x - a.global_position.x, 0.0, threat_pos.z - a.global_position.z))
+	if dive:
+		stats_dives += 1
+	else:
+		stats_evasions += 1
+
+
+## Chooses where to escape to. Preference: away from the tuk's path, deeper
+## onto pavement/forecourt (not into a traffic lane), towards the pedestrian
+## network, never through a building/wall (ray + point checks), never off map.
+func pick_evade_target(from: Vector3, dir: Vector3, threat_pos: Vector3, dist: float) -> Vector3:
+	var side := Vector3(-dir.z, 0.0, dir.x)
+	var rel := from - threat_pos
+	var my_side := signf(rel.dot(side))
+	if my_side == 0.0:
+		my_side = 1.0
+	var candidates: Array[Vector3] = [
+		side * my_side, (side * my_side + dir * 0.4).normalized(), (side * my_side - dir * 0.3).normalized(),
+		-side * my_side, (-side * my_side + dir * 0.4).normalized(),
+	]
+	var best := from
+	var best_score := -INF
+	var road := traffic.network if traffic != null else null
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	for k in candidates.size():
+		var target := from + candidates[k] * dist
+		target.y = from.y
+		var score := 0.0
+		if k < 3:
+			score += 4.0  # stay on the side you are already on: away from the path
+		if road != null:
+			if not road.district_rect.has_point(Vector2(target.x, target.z)):
+				score -= 50.0
+			if WorldSurface.is_on_carriageway(road, target, 0.3):
+				score -= 8.0  # never prefer a live traffic lane
+		if space != null:
+			var q := PhysicsRayQueryParameters3D.create(from + Vector3.UP * 0.9, target + Vector3.UP * 0.9, 1)
+			if not space.intersect_ray(q).is_empty():
+				score -= 30.0  # building / wall / post in the way
+		var node := network.nearest_node(target)
+		if node >= 0:
+			score -= network.node_pos[node].distance_to(target) * 0.3
+		if score > best_score:
+			best_score = score
+			best = target
+	return best
+
+
+func _tick_evade(a: HumanAgent, delta: float) -> void:
+	a.state_timer += delta
+	var mult := a.evade_speed / maxf(a.walk_speed, 0.3)
+	a.speed_multiplier = mult
+	var arrived := a.global_position.distance_to(a.evade_target) < 0.15 or a.step_towards(a.evade_target, delta)
+	if a.visual != null:
+		if not arrived and a.evade_dive:
+			# Placeholder "jump aside": hop + lean until real animation exists.
+			a.visual.position.y = absf(sin(a.state_timer * 9.0)) * 0.35
+			a.visual.rotation.z = 0.35
+		else:
+			a.visual.rotation.z = 0.0
+	if not arrived:
+		a.idle_timer = a.evade_settle
+		return
+	a.is_moving = false
+	a.idle_timer -= delta
+	var to_player := player_position - a.global_position
+	a.face(Vector3(to_player.x, 0.0, to_player.z))
+	if a.idle_timer > 0.0:
+		return
+	a.speed_multiplier = 1.0
+	a.set_reaction(HumanAgent.Reaction.NONE)
+	if a.visual != null:
+		a.visual.rotation.z = 0.0
+	if a.role != HumanAgent.Role.PASSENGER and a.role != HumanAgent.Role.TRAFFIC_DRIVER:
+		a.current_node = network.nearest_node(a.global_position)  # rejoin the network
+		a.path = PackedInt32Array()
+		a.idle_timer = rng.randf_range(0.3, 1.0)
+	a.set_state(a.evade_resume)
 
 
 func _react_to_player(a: HumanAgent) -> void:

@@ -167,6 +167,12 @@ func _physics_process(delta: float) -> void:
 		return
 	_follower_horns(delta)
 	var b := driver.behaviour as DriverBehaviour if driver != null else null
+	if (phase == Phase.APPROACHING or phase == Phase.ARGUING) and driver != null:
+		if driver.state == HumanAgent.State.EVADING:
+			return  # jumping out of the tuk's way (v0.03A2); resumes RETURNING_TO_VEHICLE
+		if driver.state == HumanAgent.State.RETURNING_TO_VEHICLE:
+			_set_phase(Phase.RETURNING)  # evaded the tuk: they've had enough
+			return
 	match phase:
 		Phase.STOPPING:
 			if phase_time >= config.stop_seconds and agent.speed < 0.5:
@@ -179,7 +185,9 @@ func _physics_process(delta: float) -> void:
 			if phase_time >= _honk_seconds:
 				_set_phase(Phase.RESUMING)
 		Phase.EXITING:
-			if phase_time >= config.exit_seconds:
+			if driver.state == HumanAgent.State.RETURNING_TO_VEHICLE:
+				_set_phase(Phase.RETURNING)
+			elif driver.state == HumanAgent.State.EXITING_VEHICLE and phase_time >= config.exit_seconds:
 				_update_approach_target(b)
 				driver.set_state(HumanAgent.State.APPROACHING_PLAYER)
 				_set_phase(Phase.APPROACHING)

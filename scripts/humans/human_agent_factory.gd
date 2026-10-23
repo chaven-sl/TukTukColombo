@@ -123,6 +123,10 @@ static func reaction_material(r: HumanAgent.Reaction) -> StandardMaterial3D:
 			color = Color(1.0, 0.15, 0.1)
 		HumanAgent.Reaction.ANGRY:
 			color = Color(0.95, 0.05, 0.2)
+		HumanAgent.Reaction.EVADE:
+			color = Color(1.0, 0.3, 0.05)
+		HumanAgent.Reaction.DIVE:
+			color = Color(1.0, 0.0, 0.0)
 	return marker_material(color)
 
 

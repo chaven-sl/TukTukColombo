@@ -22,27 +22,33 @@ enum State {
 	# v0.03A1 traffic drivers (only in the world during an incident; while
 	# driving they are logically IN_VEHICLE and have no HumanAgent).
 	EXITING_VEHICLE, APPROACHING_PLAYER, ARGUING, RETURNING_TO_VEHICLE,
+	# v0.03A2 emergency escape from a tuk heading at them (any role).
+	EVADING,
 }
 enum Role { NONE, SIDEWALK_WALKER, CROSSING_PEDESTRIAN, WAITING_PEDESTRIAN, GROUP_MEMBER, PASSENGER, TRAFFIC_DRIVER }
-enum Reaction { NONE, HESITATE, STEP_BACK, HURRY, FREEZE, ANGRY }
+enum Reaction { NONE, HESITATE, STEP_BACK, HURRY, FREEZE, ANGRY, EVADE, DIVE }
 
 const TRANSITIONS := {
 	State.INACTIVE: [State.IDLE, State.WALKING, State.WAITING_FOR_PICKUP, State.EXITING_VEHICLE],
-	State.IDLE: [State.WALKING, State.REACTING, State.RETURNING_TO_POOL],
-	State.WALKING: [State.IDLE, State.WAITING_TO_CROSS, State.REACTING, State.RETURNING_TO_POOL],
-	State.WAITING_TO_CROSS: [State.CROSSING, State.WALKING, State.REACTING, State.RETURNING_TO_POOL],
+	State.IDLE: [State.WALKING, State.REACTING, State.RETURNING_TO_POOL, State.EVADING],
+	State.WALKING: [State.IDLE, State.WAITING_TO_CROSS, State.REACTING, State.RETURNING_TO_POOL, State.EVADING],
+	State.WAITING_TO_CROSS: [State.CROSSING, State.WALKING, State.REACTING, State.RETURNING_TO_POOL, State.EVADING],
 	State.CROSSING: [State.WALKING, State.IDLE, State.RETURNING_TO_POOL],
-	State.REACTING: [State.WALKING, State.IDLE, State.WAITING_TO_CROSS, State.WAITING_FOR_PICKUP, State.RETURNING_TO_POOL],
-	State.WAITING_FOR_PICKUP: [State.APPROACHING_TUK, State.REACTING, State.RETURNING_TO_POOL],
+	State.REACTING: [State.WALKING, State.IDLE, State.WAITING_TO_CROSS, State.WAITING_FOR_PICKUP, State.RETURNING_TO_POOL, State.EVADING],
+	State.WAITING_FOR_PICKUP: [State.APPROACHING_TUK, State.REACTING, State.RETURNING_TO_POOL, State.EVADING],
 	State.APPROACHING_TUK: [State.BOARDING, State.WAITING_FOR_PICKUP, State.RETURNING_TO_POOL],
 	State.BOARDING: [State.RIDING, State.WAITING_FOR_PICKUP, State.RETURNING_TO_POOL],
 	State.RIDING: [State.EXITING, State.RETURNING_TO_POOL],
-	State.EXITING: [State.RETURNING_TO_POOL, State.WALKING],
+	State.EXITING: [State.RETURNING_TO_POOL, State.WALKING, State.EVADING],
 	State.RETURNING_TO_POOL: [State.INACTIVE],
-	State.EXITING_VEHICLE: [State.APPROACHING_PLAYER, State.RETURNING_TO_VEHICLE, State.RETURNING_TO_POOL],
-	State.APPROACHING_PLAYER: [State.ARGUING, State.RETURNING_TO_VEHICLE, State.RETURNING_TO_POOL],
-	State.ARGUING: [State.RETURNING_TO_VEHICLE, State.RETURNING_TO_POOL],
-	State.RETURNING_TO_VEHICLE: [State.RETURNING_TO_POOL],
+	State.EXITING_VEHICLE: [State.APPROACHING_PLAYER, State.RETURNING_TO_VEHICLE, State.RETURNING_TO_POOL, State.EVADING],
+	State.APPROACHING_PLAYER: [State.ARGUING, State.RETURNING_TO_VEHICLE, State.RETURNING_TO_POOL, State.EVADING],
+	State.ARGUING: [State.RETURNING_TO_VEHICLE, State.RETURNING_TO_POOL, State.EVADING],
+	State.RETURNING_TO_VEHICLE: [State.RETURNING_TO_POOL, State.EVADING],
+	# Evading people return to their own role's state (pedestrians IDLE,
+	# waiting passengers WAITING_FOR_PICKUP, exiting passengers EXITING,
+	# drivers RETURNING_TO_VEHICLE).
+	State.EVADING: [State.IDLE, State.WAITING_FOR_PICKUP, State.EXITING, State.RETURNING_TO_VEHICLE, State.RETURNING_TO_POOL],
 }
 
 ## Counts rejected transitions (tests and the soak assert this stays 0).
@@ -83,6 +89,13 @@ var danger_cooldown_until := -100.0
 ## Direction to step when reacting: away from the threat's line of travel.
 var react_dir := Vector3.ZERO
 var stuck_time := 0.0
+
+# Emergency evasion (v0.03A2).
+var evade_target := Vector3.ZERO
+var evade_speed := 4.5
+var evade_settle := 1.5
+var evade_dive := false
+var evade_resume: State = State.IDLE
 
 # Passenger role.
 var passenger_profile: PassengerProfile = null
