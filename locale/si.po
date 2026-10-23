@@ -244,3 +244,107 @@ msgstr ""
 
 msgid "GRAPHICS_HIGH"
 msgstr ""
+
+# --- v0.03A1 hire UX, GPS, traffic incidents (Sri Lankan English placeholders; colloquial si/ta + VO in the audio sprint) ---
+
+msgid "PICKUP_FORT_JUNCTION"
+msgstr ""
+
+msgid "PICKUP_PETTAH_LANE"
+msgstr ""
+
+msgid "PICKUP_GALLE_ROAD"
+msgstr ""
+
+msgid "UI_HIRE_AVAILABLE"
+msgstr ""
+
+msgid "UI_PICKUP"
+msgstr ""
+
+msgid "UI_TRIP"
+msgstr ""
+
+msgid "UI_ACCEPT_HIRE"
+msgstr ""
+
+msgid "UI_ACCEPT_HIRE_TOUCH"
+msgstr ""
+
+msgid "UI_PICK_UP_MARKER"
+msgstr ""
+
+msgid "GPS_STRAIGHT"
+msgstr ""
+
+msgid "GPS_LEFT"
+msgstr ""
+
+msgid "GPS_RIGHT"
+msgstr ""
+
+msgid "GPS_PICKUP"
+msgstr ""
+
+msgid "GPS_DESTINATION"
+msgstr ""
+
+msgid "GPS_STOP_TO_PICK_UP"
+msgstr ""
+
+msgid "GPS_STOP_HERE"
+msgstr ""
+
+msgid "DRIVER_SHOUT_WATCH_OUT"
+msgstr ""
+
+msgid "DRIVER_SHOUT_WHAT_DOING"
+msgstr ""
+
+msgid "DRIVER_SHOUT_LEFT"
+msgstr ""
+
+msgid "DRIVER_ARGUE_LOOK"
+msgstr ""
+
+msgid "DRIVER_ARGUE_WHO_TAUGHT"
+msgstr ""
+
+msgid "DRIVER_ARGUE_BLIND"
+msgstr ""
+
+msgid "DRIVER_ARGUE_CAREFUL"
+msgstr ""
+
+msgid "DRIVER_ARGUE_LATE"
+msgstr ""
+
+msgid "DRIVER_ARGUE_PAY"
+msgstr ""
+
+msgid "SFX_HORN_ANGRY"
+msgstr ""
+
+msgid "SFX_HORN_REPEATED"
+msgstr ""
+
+msgid "SFX_HORN_NEARBY"
+msgstr ""
+
+msgid "REACT_COLLISION_LATE"
+msgstr ""
+
+msgid "REACT_COLLISION_CAREFUL"
+msgstr ""
+
+msgid "REACT_COLLISION_THRILL"
+msgstr ""
+
+msgid "REACT_INCIDENT_LATE"
+msgstr ""
+
+msgid "REACT_INCIDENT_CAREFUL"
+msgstr ""
+
+msgid "REACT_INCIDENT_THRILL"
+msgstr ""

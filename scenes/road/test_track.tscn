@@ -168,18 +168,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2, 0.15, -60)
 script = ExtResource("6_spot")
 kind = 2
 spot_id = &"pickup_executive"
+display_name_key = "PICKUP_FORT_JUNCTION"
 
 [node name="PickupAunty" type="Marker3D" parent="Pedestrians"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2, 0.15, -200)
 script = ExtResource("6_spot")
 kind = 2
 spot_id = &"pickup_aunty"
+display_name_key = "PICKUP_PETTAH_LANE"
 
 [node name="PickupThrill" type="Marker3D" parent="Pedestrians"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.8, 0.15, -20)
 script = ExtResource("6_spot")
 kind = 2
 spot_id = &"pickup_thrill"
+display_name_key = "PICKUP_GALLE_ROAD"
 
 [node name="DestMarket" type="Marker3D" parent="Pedestrians"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 160, 0.15, -362.7)

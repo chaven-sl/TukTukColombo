@@ -4,14 +4,21 @@ extends Resource
 ## Speeds are km/h. Subscores are 0–100.
 
 @export_group("Pickup and arrival")
-## Accept prompt appears within this distance of a waiting passenger (m).
+## v0.02 accept distance (m). Kept for reference/tests; since v0.03A1 the
+## hire is offered from hire_offer_radius and the GPS leads to the pickup.
 @export var accept_radius := 12.0
+## v0.03A1: the nearest waiting passenger within this straight-line distance
+## (m) is offered as a hire (card + ACCEPT HIRE); GPS then guides to them.
+@export var hire_offer_radius := 220.0
 ## Tuk must be within this distance of the passenger to board (m)...
 @export var pickup_radius := 9.0
 ## ...and slower than this (km/h).
 @export var pickup_max_speed_kmh := 5.0
-## Accepted offer is cancelled if the tuk drives this far away first (m).
+## Accepted offer is cancelled if the tuk ends up this much farther from the
+## passenger than when the hire was accepted (m), and at least
+## cancel_distance away.
 @export var cancel_distance := 90.0
+@export var cancel_extra_distance := 140.0
 @export var boarding_seconds := 0.8
 @export var arrive_radius := 12.0
 @export var arrive_max_speed_kmh := 5.0

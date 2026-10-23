@@ -1,13 +1,22 @@
 class_name RideHud
 extends CanvasLayer
-## Lightweight ride UI: offer card + accept prompt, pickup hint, active-ride
-## panel, passenger reaction bubble, ride result card, unsafe-driving notice,
-## and simple world beacons (pickups while available, destination during a
-## ride). Presentation only; all text via translation keys; speeds in km/h.
+## Lightweight ride UI: hire card + ACCEPT HIRE prompt, GPS instruction,
+## selected-passenger marker, active-ride panel, passenger reaction bubble,
+## ride result card, unsafe-driving notice, and world beacons. Presentation
+## only; all text via translation keys; speeds in km/h.
+##
+## v0.03A1 hire UX: the offered hire is named on a card (passenger type,
+## pickup, destination, trip, priority). Once accepted, the selected
+## passenger's beacon dominates, every other offer is muted, and an overhead
+## "PICK UP / <type> / <distance>" marker follows them; RouteGuidance draws
+## the road route and the top-centre instruction.
 
 var rides: RideManager
 var offers: PassengerOfferManager
 var world: Node3D
+var guidance: RouteGuidance
+## Touch mode hides the keyboard hint (the ACCEPT HIRE button replaces it).
+var touch_mode := false
 
 var _offer_panel: PanelContainer
 var _offer_label: Label
@@ -23,18 +32,33 @@ var _mood_timer := 0.0
 var _mood_state: PassengerMood.Mood = PassengerMood.Mood.HAPPY
 var _pickup_beacons: Dictionary = {}  # PassengerOffer -> MeshInstance3D
 var _dest_beacon: MeshInstance3D
+var _gps_panel: PanelContainer
+var _gps_label: Label
+var _pickup_tag: Label3D
 
 
-func setup(p_rides: RideManager, p_offers: PassengerOfferManager, p_world: Node3D) -> void:
+func setup(p_rides: RideManager, p_offers: PassengerOfferManager, p_world: Node3D, p_guidance: RouteGuidance = null) -> void:
 	rides = p_rides
 	offers = p_offers
 	world = p_world
+	guidance = p_guidance
 	rides.result_ready.connect(_on_result)
 	rides.reaction.connect(_on_reaction)
 	EventBus.pedestrian_impact.connect(_on_pedestrian_impact)
 	for offer in offers.offers:
 		_pickup_beacons[offer] = _beacon(offer.profile.marker_color, 0.18)
 	_dest_beacon = _beacon(Color(0.2, 1.0, 0.45), 0.35)
+	_pickup_tag = Label3D.new()
+	_pickup_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_pickup_tag.no_depth_test = true
+	_pickup_tag.fixed_size = true
+	_pickup_tag.pixel_size = 0.0011
+	_pickup_tag.font_size = 30
+	_pickup_tag.outline_size = 10
+	_pickup_tag.modulate = Color(1.0, 0.95, 0.4)
+	_pickup_tag.render_priority = 10
+	_pickup_tag.visible = false
+	world.add_child(_pickup_tag)
 
 
 func _ready() -> void:
@@ -43,8 +67,13 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
-	_offer_panel = _panel(root, Control.PRESET_CENTER_BOTTOM, Vector2(-230, -190), Vector2(460, 0))
+	# Hire card top-left: clear of both thumb zones and the GPS/combo line.
+	_offer_panel = _panel(root, Control.PRESET_TOP_LEFT, Vector2(24, 100), Vector2(400, 0))
 	_offer_label = _label(_offer_panel, 22)
+	_gps_panel = _panel(root, Control.PRESET_CENTER_TOP, Vector2(-200, 12), Vector2(400, 0))
+	_gps_label = _label(_gps_panel, 30)
+	_gps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	(_gps_panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Color(0.02, 0.18, 0.28, 0.82)
 	_ride_panel = _panel(root, Control.PRESET_TOP_RIGHT, Vector2(-380, 18), Vector2(360, 0))
 	_ride_label = _label(_ride_panel, 20)
 	_result_panel = _panel(root, Control.PRESET_CENTER, Vector2(-250, -190), Vector2(500, 0))
@@ -64,6 +93,7 @@ func _ready() -> void:
 	_notice.label_settings = _settings(44, Color(1.0, 0.35, 0.3))
 	root.add_child(_notice)
 	_offer_panel.visible = false
+	_gps_panel.visible = false
 	_ride_panel.visible = false
 	_result_panel.visible = false
 
@@ -135,6 +165,7 @@ func _process(delta: float) -> void:
 		return
 	_update_beacons()
 	_update_offer_panel()
+	_update_gps()
 	_update_ride_panel(delta)
 	if _result_timer > 0.0:
 		_result_timer -= delta
@@ -147,22 +178,47 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _result_panel != null and _result_panel.visible and event.is_action_pressed("interact") and rides.nearby_offer == null:
+	if _result_panel != null and _result_panel.visible and event.is_action_pressed("interact"):
 		_result_panel.visible = false
 		_result_timer = 0.0
 
 
 func _update_beacons() -> void:
+	var selected: PassengerOffer = rides.offer if rides.state == RideManager.RideState.EN_ROUTE_TO_PICKUP \
+			or rides.state == RideManager.RideState.BOARDING else null
+	var highlighted: PassengerOffer = rides.nearby_offer if rides.state == RideManager.RideState.NO_RIDE else null
+	var hire_taken := rides.state != RideManager.RideState.NO_RIDE
 	for offer in _pickup_beacons.keys():
 		var beacon: MeshInstance3D = _pickup_beacons[offer]
 		var o: PassengerOffer = offer
-		beacon.visible = o.state == PassengerOffer.State.AVAILABLE or (o == rides.offer and rides.state == RideManager.RideState.EN_ROUTE_TO_PICKUP)
-		if beacon.visible:
-			beacon.global_position = o.pickup.global_position + Vector3(0, 3.5, 0)
+		# Once a hire is taken only the selected passenger keeps a beacon.
+		beacon.visible = o == selected or (not hire_taken and o.state == PassengerOffer.State.AVAILABLE)
+		if o.passenger != null:
+			if hire_taken and o != selected:
+				o.passenger.hide_passenger_marker()
+			elif o.state == PassengerOffer.State.AVAILABLE or o == selected:
+				o.passenger.show_passenger_marker(o.profile.marker_color)
+		if not beacon.visible:
+			continue
+		var emphasis := 3.0 if o == selected else (1.8 if o == highlighted else 1.0)
+		beacon.scale = Vector3(emphasis, 1.0 + (emphasis - 1.0) * 0.6, emphasis)
+		var anchor := o.passenger.global_position if o.passenger != null else o.pickup.global_position
+		beacon.global_position = anchor + Vector3(0, 3.5 * beacon.scale.y, 0)
 	var show_dest := rides.state == RideManager.RideState.ACTIVE and rides.offer != null
 	_dest_beacon.visible = show_dest
 	if show_dest:
 		_dest_beacon.global_position = rides.offer.destination.global_position + Vector3(0, 3.5, 0)
+	_update_pickup_tag(selected)
+
+
+func _update_pickup_tag(selected: PassengerOffer) -> void:
+	var agent := selected.passenger if selected != null else null
+	_pickup_tag.visible = agent != null and rides.state == RideManager.RideState.EN_ROUTE_TO_PICKUP
+	if not _pickup_tag.visible:
+		return
+	var dist := guidance.remaining_m if guidance != null and guidance.plan != null else agent.global_position.distance_to(rides.player.global_position)
+	_pickup_tag.text = "%s\n%s\n%d m" % [tr("UI_PICK_UP_MARKER"), tr(selected.profile.display_name_key).to_upper(), RoutePlan.display_distance(dist)]
+	_pickup_tag.global_position = agent.global_position + Vector3(0, 2.6, 0)
 
 
 func _update_offer_panel() -> void:
@@ -171,18 +227,28 @@ func _update_offer_panel() -> void:
 	match rides.state:
 		RideManager.RideState.NO_RIDE:
 			if offer != null:
+				lines.append(tr("UI_HIRE_AVAILABLE"))
 				lines.append(tr(offer.profile.display_name_key).to_upper())
+				lines.append("%s: %s" % [tr("UI_PICKUP"), tr(offer.pickup.display_name_key)])
 				lines.append("%s: %s" % [tr("UI_DESTINATION"), tr(offer.destination.display_name_key)])
-				lines.append("%s: %s" % [tr("UI_DISTANCE"), km(offer.route_m)])
+				lines.append("%s: %s" % [tr("UI_TRIP"), km(offer.route_m)])
 				lines.append("%s: %s" % [tr("UI_PRIORITY"), tr(offer.profile.priority_key)])
-				lines.append("")
-				lines.append(tr("UI_ACCEPT_RIDE") % interact_key_label())
+				if not touch_mode:
+					lines.append("")
+					lines.append(tr("UI_ACCEPT_HIRE") % interact_key_label())
 		RideManager.RideState.EN_ROUTE_TO_PICKUP:
 			lines.append(tr("UI_PICKUP_HINT") % tr(rides.offer.profile.display_name_key))
+			lines.append("%s: %s" % [tr("UI_PICKUP"), tr(rides.offer.pickup.display_name_key)])
 		RideManager.RideState.BOARDING:
 			lines.append(tr("UI_BOARDING"))
 	_offer_panel.visible = not lines.is_empty()
 	_offer_label.text = "\n".join(lines)
+
+
+func _update_gps() -> void:
+	var text := guidance.instruction_text() if guidance != null else ""
+	_gps_panel.visible = not text.is_empty()
+	_gps_label.text = text
 
 
 func _update_ride_panel(delta: float) -> void:
@@ -198,7 +264,8 @@ func _update_ride_panel(delta: float) -> void:
 	var lines := PackedStringArray()
 	lines.append(tr(rides.offer.profile.display_name_key).to_upper())
 	lines.append("%s: %s" % [tr("UI_DESTINATION"), tr(rides.offer.destination.display_name_key)])
-	lines.append("%s: %s" % [tr("UI_REMAINING"), km(rides.remaining_m)])
+	var remaining := guidance.remaining_m if guidance != null and guidance.plan != null else rides.remaining_m
+	lines.append("%s: %s" % [tr("UI_REMAINING"), km(remaining)])
 	lines.append("%s: %s" % [tr("UI_PASSENGER_MOOD"), tr(PassengerMood.KEYS[_mood_state])])
 	lines.append("%s: %d:%02d" % [tr("UI_RIDE_TIME"), int(t.elapsed) / 60, int(t.elapsed) % 60])
 	_ride_label.text = "\n".join(lines)

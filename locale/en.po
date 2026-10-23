@@ -240,3 +240,107 @@ msgstr "Medium"
 
 msgid "GRAPHICS_HIGH"
 msgstr "High"
+
+# --- v0.03A1 hire UX, GPS, traffic incidents (Sri Lankan English placeholders; colloquial si/ta + VO in the audio sprint) ---
+
+msgid "PICKUP_FORT_JUNCTION"
+msgstr "Fort Junction"
+
+msgid "PICKUP_PETTAH_LANE"
+msgstr "Pettah Lane"
+
+msgid "PICKUP_GALLE_ROAD"
+msgstr "Galle Road Stop"
+
+msgid "UI_HIRE_AVAILABLE"
+msgstr "HIRE AVAILABLE"
+
+msgid "UI_PICKUP"
+msgstr "Pickup"
+
+msgid "UI_TRIP"
+msgstr "Trip"
+
+msgid "UI_ACCEPT_HIRE"
+msgstr "%s — ACCEPT HIRE"
+
+msgid "UI_ACCEPT_HIRE_TOUCH"
+msgstr "ACCEPT HIRE"
+
+msgid "UI_PICK_UP_MARKER"
+msgstr "PICK UP"
+
+msgid "GPS_STRAIGHT"
+msgstr "STRAIGHT"
+
+msgid "GPS_LEFT"
+msgstr "LEFT"
+
+msgid "GPS_RIGHT"
+msgstr "RIGHT"
+
+msgid "GPS_PICKUP"
+msgstr "PICKUP"
+
+msgid "GPS_DESTINATION"
+msgstr "DESTINATION"
+
+msgid "GPS_STOP_TO_PICK_UP"
+msgstr "STOP TO PICK UP"
+
+msgid "GPS_STOP_HERE"
+msgstr "STOP HERE"
+
+msgid "DRIVER_SHOUT_WATCH_OUT"
+msgstr "Watch where you're going!"
+
+msgid "DRIVER_SHOUT_WHAT_DOING"
+msgstr "What are you doing?!"
+
+msgid "DRIVER_SHOUT_LEFT"
+msgstr "Hey! Come back here!"
+
+msgid "DRIVER_ARGUE_LOOK"
+msgstr "Look what you did to my car!"
+
+msgid "DRIVER_ARGUE_WHO_TAUGHT"
+msgstr "Who taught you to drive?!"
+
+msgid "DRIVER_ARGUE_BLIND"
+msgstr "Aiyo! Are you blind or what?"
+
+msgid "DRIVER_ARGUE_CAREFUL"
+msgstr "Be careful, no, machang!"
+
+msgid "DRIVER_ARGUE_LATE"
+msgstr "Now I'm also late because of you!"
+
+msgid "DRIVER_ARGUE_PAY"
+msgstr "Who's going to pay for this?!"
+
+msgid "SFX_HORN_ANGRY"
+msgstr "PAAAN!"
+
+msgid "SFX_HORN_REPEATED"
+msgstr "PAAN! PAAN! PAAAAN!"
+
+msgid "SFX_HORN_NEARBY"
+msgstr "paan"
+
+msgid "REACT_COLLISION_LATE"
+msgstr "We don't have time for this!"
+
+msgid "REACT_COLLISION_CAREFUL"
+msgstr "Aiyo! I told you to be careful!"
+
+msgid "REACT_COLLISION_THRILL"
+msgstr "Hey — not like that, that's a crash!"
+
+msgid "REACT_INCIDENT_LATE"
+msgstr "Don't argue, just go — I'm late!"
+
+msgid "REACT_INCIDENT_CAREFUL"
+msgstr "Say sorry, putha, and let's go."
+
+msgid "REACT_INCIDENT_THRILL"
+msgstr "Ha! Now we have a show."

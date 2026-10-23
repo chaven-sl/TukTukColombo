@@ -11,8 +11,10 @@ extends Node
 ## RideConfig.fail_on_rollover. Minor/major collisions never fail a ride —
 ## they only lower satisfaction.
 ##
-## Input: request_accept() is called by the "interact" action here, and can
-## be called by a future touch button without changes.
+## Input: request_accept() is called by the "interact" action here and by the
+## touch ACCEPT HIRE button. v0.03A1: the offered hire is the nearest waiting
+## passenger within RideConfig.hire_offer_radius; RouteGuidance then leads the
+## player to the pickup and, after boarding, to the destination.
 
 signal state_changed(state: RideState)
 signal reaction(reaction_key: String)
@@ -53,6 +55,8 @@ var remaining_m := 0.0
 var invalid_transitions := 0
 var current_reaction_key := ""
 var current_reaction_time := 0.0
+## Straight-line tuk→passenger distance when the hire was accepted (m).
+var accept_distance := 0.0
 
 var _remaining_timer := 0.0
 var _seat: Node3D
@@ -74,6 +78,7 @@ func setup(p_player: TukController, p_offers: PassengerOfferManager, p_humans: H
 	EventBus.collision_event.connect(_on_collision)
 	EventBus.pedestrian_danger.connect(_on_pedestrian_danger)
 	EventBus.pedestrian_impact.connect(_on_pedestrian_impact)
+	EventBus.traffic_incident_started.connect(_on_traffic_incident)
 	player.roll_state_changed.connect(_on_roll_state)
 
 
@@ -101,6 +106,7 @@ func request_accept() -> bool:
 	if state != RideState.NO_RIDE or nearby_offer == null:
 		return false
 	offer = nearby_offer
+	accept_distance = offer.passenger.global_position.distance_to(player.global_position) if offer.passenger != null else 0.0
 	offers.mark(offer, PassengerOffer.State.ACCEPTED)
 	set_state(RideState.OFFER_SELECTED)
 	set_state(RideState.EN_ROUTE_TO_PICKUP)
@@ -118,7 +124,7 @@ func _physics_process(delta: float) -> void:
 		current_reaction_time -= delta
 	match state:
 		RideState.NO_RIDE:
-			nearby_offer = offers.offer_near(player.global_position, config.accept_radius)
+			nearby_offer = offers.offer_near(player.global_position, config.hire_offer_radius)
 		RideState.EN_ROUTE_TO_PICKUP:
 			_tick_en_route()
 		RideState.BOARDING:
@@ -138,7 +144,7 @@ func _tick_en_route() -> void:
 		_cancel_offer()
 		return
 	var d := agent.global_position.distance_to(player.global_position)
-	if d > config.cancel_distance:
+	if d > maxf(config.cancel_distance, accept_distance + config.cancel_extra_distance):
 		offers.release_back(offer)
 		_cancel_offer()
 		return
@@ -285,6 +291,13 @@ func _on_pedestrian_impact(_event: PedestrianEvent) -> void:
 	if state == RideState.ACTIVE:
 		telemetry.pedestrian_impacts += 1
 		_finish(RideResult.Outcome.FAILED, RideResult.FailReason.PEDESTRIAN_IMPACT)
+
+
+## v0.03A1: a hit driver stopping / getting out. Satisfaction is unchanged —
+## the collision itself was already counted and lost time counts naturally.
+func _on_traffic_incident(tier: int, _pos: Vector3) -> void:
+	if state == RideState.ACTIVE and tier >= IncidentRules.Tier.MODERATE:
+		reactions.on_incident()
 
 
 func _on_roll_state(roll_state: TukController.RollState) -> void:

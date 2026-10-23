@@ -79,7 +79,7 @@ func _build() -> void:
 
 	_combo_root = VBoxContainer.new()
 	_combo_root.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_combo_root.position = Vector2(-110, 18)
+	_combo_root.position = Vector2(-110, 84)  # below the GPS instruction line
 	_combo_root.custom_minimum_size = Vector2(220, 0)
 	_combo_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_combo_root)
