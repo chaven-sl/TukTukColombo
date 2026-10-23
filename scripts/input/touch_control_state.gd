@@ -13,9 +13,13 @@ enum Pad { NONE, STEER, ACCELERATE, BRAKE, HORN, ACCEPT, PAUSE }
 var config: TouchControlsConfig
 ## Control rectangles (logical units). Set by the layout.
 var rects: Dictionary = {}
-## Steering pad centre/half-width used for the analog mapping.
+## Steering pad centre/half-width (layout and visuals only since v0.03A1).
 var steer_center_x := 0.0
 var steer_half_width := 150.0
+## Floating steering origin: x where the steering thumb landed (telemetry,
+## visuals) and the current horizontal offset from it.
+var steer_origin_x := 0.0
+var steer_delta := 0.0
 ## Whether the contextual ACCEPT RIDE button is currently shown.
 var accept_available := false
 
@@ -53,7 +57,9 @@ func press(index: int, pos: Vector2) -> Pad:
 	match c:
 		Pad.STEER:
 			_steer_index = index
-			steer = TouchSteeringMapper.map(pos.x - steer_center_x, steer_half_width, config)
+			steer_origin_x = pos.x
+			steer_delta = 0.0
+			steer = 0.0  # touch-down never steers, wherever it lands
 		Pad.HORN, Pad.ACCEPT, Pad.PAUSE:
 			_pending.append(c)
 	return c
@@ -61,13 +67,15 @@ func press(index: int, pos: Vector2) -> Pad:
 
 func drag(index: int, pos: Vector2) -> void:
 	if index == _steer_index:
-		steer = TouchSteeringMapper.map(pos.x - steer_center_x, steer_half_width, config)
+		steer_delta = pos.x - steer_origin_x
+		steer = TouchSteeringMapper.map(steer_delta, config.steer_full_lock_travel, config)
 
 
 func release(index: int) -> void:
 	if index == _steer_index:
 		_steer_index = -1
 		steer = 0.0
+		steer_delta = 0.0
 	_owner.erase(index)
 
 
@@ -76,7 +84,12 @@ func cancel_all() -> void:
 	_owner.clear()
 	_steer_index = -1
 	steer = 0.0
+	steer_delta = 0.0
 	_pending.clear()
+
+
+func is_steering() -> bool:
+	return _steer_index >= 0
 
 
 func is_held(c: Pad) -> bool:

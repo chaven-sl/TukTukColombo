@@ -1,5 +1,5 @@
 extends "res://tests/test_case.gd"
-## v0.03A touch steering mapping and multitouch bookkeeping (pure logic).
+## v0.03A/v0.03A1 floating-origin touch steering mapping and multitouch bookkeeping (pure logic).
 
 
 var _cfg: TouchControlsConfig = load("res://resources/input/touch_controls.tres")
@@ -18,50 +18,104 @@ func _center(s: TouchControlState, c: int) -> Vector2:
 	return (s.rects[c] as Rect2).get_center()
 
 
+func _travel() -> float:
+	return _cfg.steer_full_lock_travel
+
+
 func test_mapper_dead_zone_and_centre() -> void:
-	check_eq(TouchSteeringMapper.map(0.0, 150.0, _cfg), 0.0, "centre = 0")
-	var inside := 150.0 * _cfg.full_lock_fraction * _cfg.steer_dead_zone * 0.9
-	check_eq(TouchSteeringMapper.map(inside, 150.0, _cfg), 0.0, "inside dead zone = 0")
-	check_eq(TouchSteeringMapper.map(-inside, 150.0, _cfg), 0.0, "inside dead zone (left) = 0")
-	var just_out := 150.0 * _cfg.full_lock_fraction * (_cfg.steer_dead_zone + 0.02)
-	var v := TouchSteeringMapper.map(just_out, 150.0, _cfg)
+	check(_cfg.steer_dead_zone >= 0.1 and _cfg.steer_dead_zone <= 0.12, "dead zone 10–12%% of travel (%.2f)" % _cfg.steer_dead_zone)
+	check_eq(TouchSteeringMapper.map(0.0, _travel(), _cfg), 0.0, "origin = 0")
+	var inside := _travel() * _cfg.steer_dead_zone * 0.9
+	check_eq(TouchSteeringMapper.map(inside, _travel(), _cfg), 0.0, "inside dead zone = 0")
+	check_eq(TouchSteeringMapper.map(-inside, _travel(), _cfg), 0.0, "inside dead zone (left) = 0")
+	var just_out := _travel() * (_cfg.steer_dead_zone + 0.02)
+	var v := TouchSteeringMapper.map(just_out, _travel(), _cfg)
 	check(v > 0.0 and v < 0.05, "just outside dead zone is a small positive value (%.3f)" % v)
 
 
 func test_mapper_clamps_to_full_lock() -> void:
-	check_near(TouchSteeringMapper.map(150.0 * _cfg.full_lock_fraction, 150.0, _cfg), 1.0, 0.001, "full lock at full_lock_fraction")
-	check_eq(TouchSteeringMapper.map(1000.0, 150.0, _cfg), 1.0, "beyond the pad clamps to +1")
-	check_eq(TouchSteeringMapper.map(-1000.0, 150.0, _cfg), -1.0, "beyond the pad clamps to -1")
+	check_near(TouchSteeringMapper.map(_travel(), _travel(), _cfg), 1.0, 0.001, "full lock at full travel")
+	check_eq(TouchSteeringMapper.map(1000.0, _travel(), _cfg), 1.0, "beyond travel clamps to +1")
+	check_eq(TouchSteeringMapper.map(-1000.0, _travel(), _cfg), -1.0, "beyond travel clamps to -1")
 
 
-func test_mapper_is_symmetric_monotonic_and_mostly_linear() -> void:
+func test_mapper_is_symmetric_monotonic_and_graded() -> void:
 	var prev := -2.0
 	for i in range(-20, 21):
-		var x := float(i) / 20.0 * 150.0
-		var v := TouchSteeringMapper.map(x, 150.0, _cfg)
+		var x := float(i) / 20.0 * _travel()
+		var v := TouchSteeringMapper.map(x, _travel(), _cfg)
 		check(v >= prev, "monotonic at %.0f" % x)
-		check_near(v, -TouchSteeringMapper.map(-x, 150.0, _cfg), 0.0001, "symmetric at %.0f" % x)
+		check_near(v, -TouchSteeringMapper.map(-x, _travel(), _cfg), 0.0001, "symmetric at %.0f" % x)
 		prev = v
-	# Mild centre softening only: half travel gives close to half output.
-	var half := TouchSteeringMapper.map(150.0 * _cfg.full_lock_fraction * 0.5, 150.0, _cfg)
-	check(half > 0.38 and half < 0.5, "half travel ≈ half lock (%.3f)" % half)
+	var small := TouchSteeringMapper.map(_travel() * 0.2, _travel(), _cfg)
+	var medium := TouchSteeringMapper.map(_travel() * 0.5, _travel(), _cfg)
+	check(small > 0.0 and small < 0.15, "small movement → fine correction (%.3f)" % small)
+	check(medium > 0.35 and medium < 0.5, "medium movement → useful urban steering (%.3f)" % medium)
+
+
+func test_touch_down_anywhere_on_pad_is_neutral() -> void:
+	var s := _state()
+	var pad: Rect2 = s.rects[TouchControlState.Pad.STEER]
+	for fx in [0.02, 0.2, 0.45, 0.5, 0.55, 0.8, 0.98]:
+		for fy in [0.1, 0.5, 0.9]:
+			var p := pad.position + pad.size * Vector2(fx, fy)
+			check_eq(s.press(0, p), TouchControlState.Pad.STEER, "pad touch at %.2f,%.2f steers" % [fx, fy])
+			check_eq(s.steer, 0.0, "touch-down at %.2f,%.2f = exactly 0" % [fx, fy])
+			s.drag(0, p)
+			check_eq(s.steer, 0.0, "holding still at %.2f,%.2f = exactly 0" % [fx, fy])
+			s.release(0)
+	# Inside the invisible hit margin too.
+	var margin := Vector2(pad.position.x - _cfg.steer_hit_margin * 0.5, pad.get_center().y)
+	s.press(0, margin)
+	check_eq(s.steer, 0.0, "touch-down in hit margin = 0")
+	s.release(0)
+
+
+func test_stationary_thumb_never_drifts() -> void:
+	var s := _state()
+	var p := _center(s, TouchControlState.Pad.STEER) + Vector2(37, 9)  # deliberately off centre
+	s.press(0, p)
+	var worst := 0.0
+	for i in 600:  # ten seconds of 60 Hz drag events with sub-millimetre jitter
+		var jitter := Vector2(sin(i * 1.7) * 3.0, cos(i * 1.3) * 3.0)
+		s.drag(0, p + jitter)
+		worst = maxf(worst, absf(s.steer))
+	check_eq(worst, 0.0, "jittering resting thumb produces no steer (left or right)")
+
+
+func test_equal_left_right_movement_gives_equal_magnitude() -> void:
+	var s := _state()
+	var p := _center(s, TouchControlState.Pad.STEER) + Vector2(-90, 0)  # near the left edge
+	for d in [15.0, 40.0, 70.0, 120.0, 200.0]:
+		s.press(0, p)
+		s.drag(0, p + Vector2(d, 0))
+		var right := s.steer
+		s.release(0)
+		s.press(0, p)
+		s.drag(0, p - Vector2(d, 0))
+		var left := s.steer
+		s.release(0)
+		check_near(right, -left, 0.0001, "±%.0f units symmetric (%.3f / %.3f)" % [d, right, left])
 
 
 func test_quick_reversal_has_no_hysteresis() -> void:
 	var s := _state()
 	var c := _center(s, TouchControlState.Pad.STEER)
-	s.press(0, c + Vector2(s.steer_half_width, 0))
+	s.press(0, c)
+	s.drag(0, c + Vector2(_travel(), 0))
 	check_eq(s.steer, 1.0, "full right")
-	s.drag(0, c - Vector2(s.steer_half_width, 0))
+	s.drag(0, c - Vector2(_travel(), 0))
 	check_eq(s.steer, -1.0, "one drag event later: full left")
 	s.release(0)
-	check_eq(s.steer, 0.0, "release returns input to 0 (vehicle steering rate smooths the wheel)")
+	check_eq(s.steer, 0.0, "release returns input exactly to 0 (vehicle steering rate smooths the wheel)")
+	check_eq(s.steer_delta, 0.0, "release clears the offset")
 
 
 func test_multitouch_steer_with_throttle_and_brake() -> void:
 	var s := _state()
 	var steer_c := _center(s, TouchControlState.Pad.STEER)
-	check_eq(s.press(0, steer_c + Vector2(40, 0)), TouchControlState.Pad.STEER, "finger 0 steers")
+	check_eq(s.press(0, steer_c), TouchControlState.Pad.STEER, "finger 0 steers")
+	s.drag(0, steer_c + Vector2(60, 0))
 	check_eq(s.press(1, _center(s, TouchControlState.Pad.ACCELERATE)), TouchControlState.Pad.ACCELERATE, "finger 1 accelerates")
 	check(s.steer > 0.0 and s.throttle() == 1.0, "steer + throttle together")
 	check_eq(s.active_touch_count(), 2, "two touches tracked")

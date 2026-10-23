@@ -1,16 +1,17 @@
 class_name TouchSteeringMapper
 extends RefCounted
-## Pure mapping from a thumb's horizontal offset on the steering pad to the
-## abstract steer value (−1 … +1). Absolute (not relative-to-touch-down): the
-## thumb's position IS the steering, so crossing from left to right reverses
-## steering immediately with no re-centre step. No smoothing here — the
-## vehicle's own approved steering response does that.
+## Pure mapping from a thumb's horizontal offset to the abstract steer value
+## (−1 … +1). v0.03A1: the offset is measured from the touch-down point
+## (floating origin), not from the pad centre — a thumb resting slightly off
+## centre no longer steers. Crossing back over the origin reverses steering
+## immediately with no re-centre step. No smoothing here — the vehicle's own
+## approved steering response does that.
 
 
-static func map(offset_x: float, half_width: float, config: TouchControlsConfig) -> float:
-	if half_width <= 0.0:
+static func map(offset_x: float, full_lock_travel: float, config: TouchControlsConfig) -> float:
+	if full_lock_travel <= 0.0:
 		return 0.0
-	var n := clampf(offset_x / (half_width * config.full_lock_fraction), -1.0, 1.0)
+	var n := clampf(offset_x / full_lock_travel, -1.0, 1.0)
 	var magnitude := absf(n)
 	if magnitude <= config.steer_dead_zone:
 		return 0.0

@@ -1,18 +1,21 @@
 class_name TouchControlsConfig
 extends Resource
-## Touch control mapping and layout tunables. PROTOTYPE BASELINE v0.03A.
+## Touch control mapping and layout tunables. PROTOTYPE BASELINE v0.03A1.
 ## Layout sizes are in logical UI units (the viewport is 720 units tall at any
 ## device resolution because of canvas_items/expand stretching).
 ## Vehicle physics are NOT tuned here — only how a thumb becomes −1…+1.
 
 @export_group("Steering mapping")
-## Fraction of the pad half-width around the centre that outputs 0.
-@export_range(0.0, 0.5) var steer_dead_zone := 0.08
+## Floating origin (v0.03A1): steering is measured from where the thumb lands,
+## so touch-down is always exactly 0 wherever it lands on the pad.
+## Horizontal thumb travel from that origin that gives full lock (logical
+## units; 720 units ≈ the screen height, so 120 ≈ 1/6 of it).
+@export_range(40.0, 300.0) var steer_full_lock_travel := 120.0
+## Fraction of the full-lock travel around the origin that outputs 0.
+@export_range(0.0, 0.5) var steer_dead_zone := 0.1
 ## 1.0 = linear. Slightly above 1 softens the centre for fine corrections
 ## without delaying full lock (kept mild: rapid countersteer matters).
 @export_range(1.0, 2.0) var steer_exponent := 1.15
-## Thumb travel (as a fraction of the pad half-width) that gives full lock.
-@export_range(0.3, 1.0) var full_lock_fraction := 0.85
 
 @export_group("Layout (logical units)")
 @export var edge_padding := 24.0

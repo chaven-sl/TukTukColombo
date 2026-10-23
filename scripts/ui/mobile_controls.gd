@@ -24,6 +24,8 @@ var _root: Control
 var _panels: Dictionary = {}  # Control -> Panel
 var _labels: Dictionary = {}
 var _knob: Panel
+## Floating-origin travel guide: shows full-lock travel around the touch-down point.
+var _track: Panel
 var _styles: Dictionary = {}
 
 
@@ -42,7 +44,11 @@ func _ready() -> void:
 	_make_panel(C.BRAKE, "UI_TOUCH_BRAKE", Color(1.0, 0.45, 0.35))
 	_make_panel(C.HORN, "UI_TOUCH_HORN", Color(1.0, 0.85, 0.3))
 	_make_panel(C.PAUSE, "UI_TOUCH_PAUSE", Color(0.9, 0.9, 0.9))
-	_make_panel(C.ACCEPT, "UI_ACCEPT_RIDE_TOUCH", Color(0.3, 0.75, 1.0))
+	_make_panel(C.ACCEPT, "UI_ACCEPT_HIRE_TOUCH", Color(0.3, 0.75, 1.0))
+	_track = Panel.new()
+	_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_track.add_theme_stylebox_override("panel", _style(Color(1, 1, 1), 0.5, 8))
+	_root.add_child(_track)
 	_knob = Panel.new()
 	_knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_knob.add_theme_stylebox_override("panel", _style(Color(1, 1, 1), 0.85, 40))
@@ -127,12 +133,28 @@ func _process(_delta: float) -> void:
 	for c in [C.ACCELERATE, C.BRAKE, C.HORN, C.STEER]:
 		var styles: Array = _styles[c]
 		(_panels[c] as Panel).add_theme_stylebox_override("panel", styles[1] if state.is_held(c) else styles[0])
-	var steer: Rect2 = rects.get(C.STEER, Rect2())
-	var knob := 72.0 * clampf(steer.size.y / 150.0, 0.8, 1.3)
-	var knob_x := steer.get_center().x + state.steer * state.steer_half_width * config.full_lock_fraction
-	_knob.size = Vector2(knob, knob)
-	_knob.position = Vector2(knob_x - knob * 0.5, steer.get_center().y - knob * 0.5)
+	_update_steer_visual()
 	_dispatch_taps()
+
+
+## The knob starts centred under the thumb (floating origin) and tracks the
+## horizontal offset. The guide is drawn around the origin, nudged inwards
+## near the pad edges so equal travel is visible both ways.
+func _update_steer_visual() -> void:
+	var steer: Rect2 = rects.get(TouchControlState.Pad.STEER, Rect2())
+	var knob := 72.0 * clampf(steer.size.y / 150.0, 0.8, 1.3)
+	var travel := config.steer_full_lock_travel
+	var base_x := steer.get_center().x
+	if state.is_steering():
+		var lo := steer.position.x + travel
+		var hi := steer.end.x - travel
+		base_x = clampf(state.steer_origin_x, lo, hi) if lo <= hi else base_x
+	var knob_x := base_x + clampf(state.steer_delta, -travel, travel)
+	var y := steer.get_center().y
+	_track.size = Vector2(travel * 2.0, 10.0)
+	_track.position = Vector2(base_x - travel, y - 5.0)
+	_knob.size = Vector2(knob, knob)
+	_knob.position = Vector2(knob_x - knob * 0.5, y - knob * 0.5)
 
 
 func _dispatch_taps() -> void:
