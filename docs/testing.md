@@ -28,7 +28,11 @@ Results also go to `user://test_results/*.json` (macOS: `~/Library/Application S
 
 Windowed runs (`godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]`) add FPS, CPU-time and draw-call figures and save screenshots.
 
-## Latest results (2026-10-23, Apple M2, after v0.03A1)
+## Latest results (2026-10-23, Apple M2, after v0.03A2)
+
+All **17 stages** pass in one run — unit **94 tests / 944 assertions**; new: HUD safe-area matrix (2,793 checks), world containment + damage + recovery + props, pavement safety (evasion), off-road soak (`--offroad`: pavement charges, prop strikes, building crashes, hard wall hits every ~14 s). Soaks are seeded (traffic, people, offers, incidents). Windowed screenshots: `world_overview_screens.tscn` (top-down, pavement, crash), `gps_incident_screens.tscn -- --simulate-safe-area=56,0,0,0`. See `docs/PROTOTYPE_V003A2_REPORT.md`.
+
+## After v0.03A1 (2026-10-23)
 
 All 13 stages pass — unit **90 tests / 916 assertions** (new: floating-origin steering incl. 10 s jitter test, RoutePlan geometry/turns/instructions, incident tiers, temperaments, severity-dominates rules, profile collision lines); GPS + incidents scenario PASS; incidents soak PASS. Windowed extras: `tests/scenarios/gps_incident_screens.tscn` (hire card, GPS, altercation screenshots). See `docs/PROTOTYPE_V003A1_REPORT.md`.
 

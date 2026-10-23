@@ -64,3 +64,21 @@ Testing found a real defect: step-back first used the home sidewalk's "away from
 | PEDESTRIAN_IMPACT | person's footprint inside the tuk's, above 3 km/h | person removed immediately (non-graphic, back to the pool); combo reset; an active ride FAILS; "UNSAFE DRIVING" notice; unsafe-incident counter saved |
 
 The vehicle near-miss detector only reads `TrafficManager.active_agents` (`TrafficAgent`s). People are never in that list, so a person can never produce CLOSE CALL or TIGHT GAP. This is covered by a scenario test that drives between two people at 50 km/h, and by the satisfaction fuzz test.
+
+## Emergency evasion (v0.03A2)
+
+`HumanManager` projects the tuk's straight-line path (1.4 s ahead on the
+road, 2.0 s when the tuk is up on a pavement) and checks each nearby person's
+miss distance at closest approach against the tuk half-width + 1.3 m — before
+any contact. Human-awareness thresholds (km/h, not physics): < 8 mild step
+back (v0.02), 8–20 **EVADE** (run 3 m at 16 km/h), > 20 or < 0.6 s to the
+closest approach **DIVE** (4.2 m at 26 km/h, hop + lean placeholder). Escape
+target scoring: stay on your side of the path, never into a traffic lane
+(−8), never through a building/wall/post (physics ray, −30), never off the
+district, prefer near the pedestrian network. State `EVADING` (any role):
+pedestrians resume IDLE and rejoin the nearest network node, waiting
+passengers walk back to their pickup spot (boarding only once settled),
+exiting passengers continue, traffic drivers walk back to their car (the
+altercation ends). Crossing pedestrians keep the v0.02 HURRY. Danger/impact
+rules unchanged; never a reward. `PedestrianConfig.emergency_evasion` can be
+turned off only by rule tests that must force contact.

@@ -1,4 +1,4 @@
-# Architecture (v0.4.1 — Prototype v0.03A1)
+# Architecture (v0.4.2 — Prototype v0.03A2)
 
 ## System map
 
@@ -86,6 +86,14 @@ Skill events already carry clearance, relative speed, side and `is_oncoming`, wh
 - **Navigation** (`scripts/navigation/`): `RoadNetwork.route_path()` → `RoutePlan` (pure) → `RouteGuidance` (follows RideManager states, cached plan, rate-limited off-route recalculation) → `RouteRibbon` + `RideHud`. See `gps_route_guidance.md`.
 - **Hire UX:** offered hire = nearest waiting passenger within `hire_offer_radius`; `RideHud` shows the card, the selected-passenger marker and mutes other offers.
 - **Traffic incidents:** `TrafficIncidentManager` (EventBus.collision_event → `IncidentRules` tiers × `DriverTemperament` data → altercation state machine) holds the hit `TrafficAgent` (`incident_hold`) and borrows a pooled `HumanAgent` with `DriverBehaviour`. Presentation/audio only via EventBus hooks (`IncidentBubbles` placeholder). See `traffic_incidents.md`.
+
+## v0.03A2 additions
+
+- **World layer** (`scripts/world/`): `WorldSurface` tags + point classification, `DistrictBoundary` ring, `WorldRecoveryManager` (safe reset provider + VOID failsafe), `ImpactPropManager` (non-blocking street clutter, pooled debris). See `world_containment_and_damage.md`.
+- **Crash consequences** (`scripts/player/`): `VehicleDamageState` (pure) + `VehicleDamageManager` (input-layer filter at physics priority −5) + `CrashEffects`; RideManager fails an active ride with `VEHICLE_DISABLED`.
+- **Pedestrian evasion**: `HumanManager._check_threat` (projected corridor) → `start_evade` / `pick_evade_target` → state `EVADING` ticked by the manager for any role.
+- **HUD**: `HudSafeArea` root for all HUD layers; `NotificationPresenter` owns banners. See `hud_safe_area.md`.
+- EventBus hooks: `world_impact`, `vehicle_damage_changed`, `vehicle_recovered`, `prop_knocked`.
 
 ## Road construction
 

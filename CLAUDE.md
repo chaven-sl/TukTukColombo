@@ -1,6 +1,6 @@
 # TukTuk Colombo — working instructions
 
-Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03A1 — mobile UX + GPS + traffic altercations** (complete, awaiting owner Android playtest). v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
+Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03A2 — world containment + crash consequences + pedestrian evasion + HUD safe areas** (complete, awaiting owner Android playtest). v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
 
 ## Repository identity
 
@@ -35,12 +35,16 @@ tools/run_tests.sh
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/human_world_test.tscn   # people + rides
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/gps_incident_test.tscn   # hire UX, GPS, incidents
-/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction | --incidents]
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/hud_safe_area_test.tscn   # HUD in safe area, 5 ratios x 6 cutouts
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/world_containment_test.tscn   # containment, damage, recovery, props
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/pavement_safety_test.tscn   # pedestrian emergency evasion
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction | --incidents | --offroad]
 # Android (debug only; see docs/android_setup.md)
 tools/android_preflight.sh && tools/export_android_debug.sh   # → builds/android/tuktukcolombo-debug.apk (git-ignored)
 tools/install_android_debug.sh                                # needs an adb device; never uninstalls
 tools/android_perf_test.sh 300                                # 5-min deterministic device perf test
 # Touch on desktop: -- --force-touch-controls (or project setting tuktuk/dev/force_touch_controls)
+# Simulated cutout / safe area (logical units): -- --simulate-safe-area=L,T,R,B
 # Real window: FPS + screenshots to user://test_results/screens
 /Applications/Godot.app/Contents/MacOS/Godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]
 ```
@@ -61,6 +65,9 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 - **Platform isolation.** Gameplay never calls SDKs; it calls `PlatformServices` (no-op in v0.01).
 - **Collisions are never a reward.** `TrafficIncidentManager` turns traffic collisions into social reactions (horn, shout, driver gets out and argues) — never score/combo/fare; no violence, no chase. One altercation at a time; drivers are pooled `HumanAgent`s (role `TRAFFIC_DRIVER`).
 - **GPS reuses the lane graph.** `RoadNetwork.route_path()` → `RoutePlan` → `RouteGuidance`; never search routes every frame (accept / boarding / reset / rate-limited off-route only).
+- **No invisible walls; consequences instead.** Road → pavement/forecourt (accessible, dangerous) → buildings/walls/poles (solid, can damage) → district ring → VOID failsafe. Static bodies carry a `WorldSurface` tag; TukController stays map-agnostic (it only reports `CollisionEvent.other_body`). Damage (`VehicleDamageState`) is applied in the input layer, never by retuning physics. All resets go through `WorldRecoveryManager.safe_reset_pose` (nearest legal lane, behind the crash, clear of traffic/people).
+- **People get out of the way.** Projected-threat evasion (EVADE / DIVE) for every role, never into a traffic lane or through a structure; danger/impact rules unchanged and never a reward.
+- **HUD lives in the safe area.** Every HUD layer builds under `HudSafeArea`; banners only via `NotificationPresenter` (priorities; CRITICAL suppresses score popups). Text wraps with max lines — never fixed widths that overflow.
 - **One human input source.** Keyboard (`PlayerInputSource`) or touch (`TouchInputSource`), chosen once by `InputMode`; both only write `VehicleInputState`. Touch taps reuse existing paths (horn event, `RideManager.request_accept()`, `GameState.set_paused()`). Android Back pauses/resumes and never quits.
 - **Android signing.** Debug keystore only (per-machine editor setting). Never create/commit a release keystore or store signing config without explicit approval. Package `com.chavensl.tuktukcolombo` is provisional.
 - **Debuggable.** F1 overlay / F2 traffic / F3 vehicle; debug code lives in `scripts/debug/` and is removable.
@@ -73,7 +80,7 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 | `data/<domain>/` | Resource **class** scripts (schemas) |
 | `resources/<domain>/` | Resource **instances** (`.tres`) |
 | `scenes/<domain>/` | scenes; a scene's root script may sit beside it |
-| `scripts/<domain>/` | runtime code: `player camera traffic road humans rides navigation scoring performance ui input platform debug utilities` |
+| `scripts/<domain>/` | runtime code: `player camera traffic road world humans rides navigation scoring performance ui input platform debug utilities` |
 | `locale/` | `en.po si.po ta.po` |
 | `tests/unit/` | headless logic tests (`test_*.gd`, extend `tests/test_case.gd`) |
 | `tests/scenarios/` | scene-based simulation tests (autopilot lives in `scripts/debug/` so the device perf test can use it) |
@@ -112,7 +119,7 @@ All speeds presented to people — docs, reports, test output, debug HUD, tuning
 
 ## Current phase & next step
 
-Delivered: v0.01, v0.01a, v0.02, v0.03A (device baseline passed ~59 FPS), v0.03A1 (`docs/PROTOTYPE_V003A1_REPORT.md`). **Next: owner installs the v0.03A1 debug APK and answers the 10 questions in that report.** Do not start v0.03B (art, audio, garage, upgrades, economy, police/fines, more passengers, weather, map expansion) without approval.
+Delivered: v0.01, v0.01a, v0.02, v0.03A (device baseline passed ~59 FPS), v0.03A1, v0.03A2 (`docs/PROTOTYPE_V003A2_REPORT.md`). **Next: owner installs the v0.03A2 debug APK and answers the 10 questions in that report.** Do not start v0.03B (art, audio, garage, repair costs, insurance, police/fines/wanted, economy, more passengers, weather, map expansion) without approval.
 
 ## Known technical debt
 
@@ -128,3 +135,4 @@ Delivered: v0.01, v0.01a, v0.02, v0.03A (device baseline passed ~59 FPS), v0.03A
 - Sinhala/Tamil: no shipped font with those glyphs; strings are placeholders needing native review.
 - Performance numbers are from an Apple M2 only; real-device baseline pending (`tools/android_perf_test.sh`).
 - HUD built in code rather than in an editable scene.
+- World: the long straight's west side has no raised pavement; the open lots inside the loop are large and empty; district ring is grey-box; props are not physics bodies (by design); no permanent vehicle deformation; evasion/dive are placeholder hop/lean (no animation).
