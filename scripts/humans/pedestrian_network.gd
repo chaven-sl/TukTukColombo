@@ -14,6 +14,8 @@ var road: RoadNetwork
 var node_pos := PackedVector3Array()
 ## Unit vector pointing away from the road (for stepping back).
 var node_out := PackedVector3Array()
+## v0.03B: relative ambient spawn weight per node (RoadSegment.pedestrian_density).
+var node_weight := PackedFloat32Array()
 var node_links: Array[PackedInt32Array] = []
 var crossings: Array[CrossingZone] = []
 var spots: Array[PedestrianSpot] = []
@@ -44,6 +46,7 @@ func build(p_road: RoadNetwork) -> void:
 				var s := lerpf(seg.sidewalk_trim_start, seg.length - seg.sidewalk_trim_end, float(i) / float(pts.size() - 1))
 				out = (seg.global_transform.basis * seg.local_right(s) * float(side)).normalized()
 				var id := _add_node(pts[i], out)
+				node_weight[id] = seg.pedestrian_density
 				if i > 0:
 					_link(path[path.size() - 1], id)
 				path.append(id)
@@ -64,6 +67,7 @@ func build(p_road: RoadNetwork) -> void:
 
 
 func _add_node(p: Vector3, out: Vector3) -> int:
+	node_weight.append(1.0)
 	node_pos.append(p)
 	node_out.append(out)
 	node_links.append(PackedInt32Array())

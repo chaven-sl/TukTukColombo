@@ -12,7 +12,9 @@ extends RefCounted
 const BLOCK_DEPTH := 10.0
 
 
-func build(network: RoadNetwork, rect: Rect2, seed_value: int) -> void:
+## Returns the block transforms (basis scaled to size) so a district dresser
+## can draw them; with `visuals` false only the colliders are built here.
+func build(network: RoadNetwork, rect: Rect2, seed_value: int, visuals: bool = true) -> Array[Transform3D]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var root := Node3D.new()
@@ -60,6 +62,8 @@ func build(network: RoadNetwork, rect: Rect2, seed_value: int) -> void:
 			colors.append(Color(tone, tone * 0.97, tone * 0.9))
 			_collider(walls if is_wall else buildings, size, xf.origin, basis)
 			d += w
+	if not visuals:
+		return xfs
 	var unit := BoxMesh.new()
 	unit.size = Vector3.ONE
 	var mm := MultiMesh.new()
@@ -76,6 +80,7 @@ func build(network: RoadNetwork, rect: Rect2, seed_value: int) -> void:
 	mmi.material_override = network.materials["scenery"]
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mmi)
+	return xfs
 
 
 func _collider(body: StaticBody3D, size: Vector3, pos: Vector3, basis: Basis) -> void:

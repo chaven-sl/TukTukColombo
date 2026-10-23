@@ -25,6 +25,8 @@ var direction_lane_count := 1
 var is_forward := true
 var width := 3.4
 var allow_spawn := true
+## v0.03B zone traffic mix (see RoadSegment.bus_spawn_scale).
+var bus_spawn_scale := 1.0
 var source_name := ""
 
 # --- Junction connector data (set by IntersectionController) ---

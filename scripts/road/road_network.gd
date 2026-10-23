@@ -32,12 +32,19 @@ var is_built := false
 ## as a failsafe case.
 var district_rect := Rect2()
 @export var district_margin := 38.0
+## v0.03B: GREYBOX (regression test track) or COLOMBO (district slices).
+@export_enum("Greybox", "Colombo") var material_style := 0
+## v0.03B: when false the district ring keeps its colliders but its visuals
+## are drawn by the district dresser (boundary_blocks).
+@export var boundary_visuals := true
+## Boundary block layout (Transform3D with scale = size) for the dresser.
+var boundary_blocks: Array[Transform3D] = []
 
 
 func build() -> void:
 	if is_built:
 		return
-	materials = RoadMaterials.create()
+	materials = RoadMaterials.create(material_style)
 	_collect(self)
 	for chain in chains:
 		chain.layout()
@@ -69,7 +76,7 @@ func build() -> void:
 	if generate_scenery:
 		ScenerySpawner.new().populate(self, scenery_seed)
 	district_rect = _compute_district_rect()
-	DistrictBoundary.new().build(self, district_rect, scenery_seed + 1)
+	boundary_blocks = DistrictBoundary.new().build(self, district_rect, scenery_seed + 1, boundary_visuals)
 	is_built = true
 	print("[RoadNetwork] %d segments, %d lanes (%d connectors), %d sources, %d sinks, %d spawn slots" % [
 		segments.size(), lanes.size(), lanes.size() - _ordinary_lane_count(), source_lanes.size(),

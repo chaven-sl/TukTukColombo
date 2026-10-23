@@ -240,6 +240,8 @@ func _try_spawn(initial: bool) -> bool:
 		var lane := network.spawn_slot_lanes[slot]
 		var s := network.spawn_slot_s[slot]
 		var pos := network.spawn_slot_pos[slot]
+		if cls.is_heavy and rng.randf() > lane.bus_spawn_scale:
+			continue  # zone traffic mix: few buses on narrow market streets
 		if not _spawn_clear(lane, s, cls, pos):
 			continue
 		_activate(cls, lane, s)
@@ -284,7 +286,7 @@ func _activate(cls: TrafficVehicleClass, lane: Lane, s: float) -> void:
 		return
 	var target := rng.randf_range(cls.min_speed_kmh, cls.max_speed_kmh) / 3.6
 	var start_speed := minf(target, lane.advisory_at(s)) * rng.randf_range(0.7, 1.0)
-	agent.set_body_material(TrafficAgentFactory.body_material(cls.body_colors[rng.randi() % cls.body_colors.size()]))
+	agent.set_visual_variant(rng.randi() % cls.body_colors.size())
 	agent.activate(lane, s, start_speed, target, choose_next_lane(lane))
 	active_agents.append(agent)
 	stats_spawned += 1

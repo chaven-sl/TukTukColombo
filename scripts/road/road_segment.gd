@@ -34,6 +34,14 @@ const LINE_WIDTH := 0.12
 @export var allow_traffic_spawn := true
 @export var sample_spacing := 2.0
 @export var scenery_density := 1.0
+## v0.03B district content: which environmental beat this segment belongs to
+## (the dresser reads it; gameplay never does).
+@export var zone: StringName = &""
+## Heavy vehicles (buses) spawn on this segment's lanes with this probability
+## scale (zone traffic mix; e.g. the narrow market street keeps buses rare).
+@export_range(0.0, 1.0) var bus_spawn_scale := 1.0
+## Relative ambient pedestrian density on this segment's sidewalks.
+@export var pedestrian_density := 1.0
 
 @export_group("Pedestrians")
 ## Raised sidewalks behind the kerb (only where that edge is a KERB).
@@ -203,6 +211,7 @@ func build_lanes() -> Array[Lane]:
 			lane.is_forward = forward
 			lane.width = lane_width
 			lane.allow_spawn = allow_traffic_spawn
+			lane.bus_spawn_scale = bus_spawn_scale
 			lane.source_name = name
 			lane.set_points(pts)
 			group.append(lane)
@@ -247,7 +256,12 @@ func build_geometry(materials: Dictionary) -> void:
 		body.collision_layer = 1
 		body.collision_mask = 0
 		var shape := CollisionShape3D.new()
-		shape.shape = mesh.create_trimesh_shape()
+		var trimesh := mesh.create_trimesh_shape()
+		# v0.03B fix: the left side's faces are mirrored (reversed winding), and
+		# Jolt concave shapes are one-sided by default — left kerbs/pavements had
+		# no collision. Back-face collision makes both sides solid.
+		trimesh.backface_collision = true
+		shape.shape = trimesh
 		body.add_child(shape)
 		add_child(body)
 
