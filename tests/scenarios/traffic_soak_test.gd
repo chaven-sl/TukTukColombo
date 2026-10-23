@@ -22,6 +22,21 @@ var park_near_junction := false
 var perf_only := false
 ## v0.03A1: scripted traffic collisions every few seconds (incident stress).
 var incidents_mode := false
+## v0.03A2: scripted off-road episodes (pavement charges at people, prop
+## strikes, building crashes, hard wall hits) every 10 s, autopilot between.
+var offroad_mode := false
+var _offroad_timer := 6.0
+var _offroad_index := 0
+var _episode_left := 0.0
+var _episode_kind := -1
+var _offroad := {"episodes": 0, "pavement": 0, "props": 0, "crashes": 0, "hard": 0}
+var _disabled_time := 0.0
+var _max_disabled_s := 0.0
+var _gps_corrupt := 0
+var damage: VehicleDamageManager
+var recovery: WorldRecoveryManager
+var props: ImpactPropManager
+var guidance: RouteGuidance
 ## A/B diagnostics: run without traffic incident reactions.
 var no_reactions := false
 var traffic_seed := 20261021
@@ -85,6 +100,8 @@ func _ready() -> void:
 			perf_only = true
 		elif arg == "--incidents":
 			incidents_mode = true
+		elif arg == "--offroad":
+			offroad_mode = true
 		elif arg.begins_with("--traffic-seed="):
 			traffic_seed = int(arg.get_slice("=", 1))
 		elif arg == "--no-incident-reactions":
@@ -106,6 +123,10 @@ func _ready() -> void:
 	player = main.get_node("PlayerTuk")
 	network = main.get_node("TestTrack")
 	incidents = main.get_node("TrafficIncidentManager")
+	damage = main.get_node("VehicleDamage")
+	recovery = main.get_node("WorldRecovery")
+	props = main.get_node("ImpactProps")
+	guidance = main.get_node("RouteGuidance")
 	if no_reactions:
 		EventBus.collision_event.disconnect(incidents.on_collision)
 	autopilot = AutopilotDriver.new()
@@ -176,6 +197,8 @@ func _physics_process(delta: float) -> void:
 	_log_passes()
 	if incidents_mode:
 		_drive_incidents(delta)
+	if offroad_mode:
+		_drive_offroad(delta)
 	_check_teleports(delta)
 	_track_waits(delta)
 	_sample_timer -= delta
@@ -184,6 +207,84 @@ func _physics_process(delta: float) -> void:
 		_sample()
 	if _t >= duration:
 		_finish()
+
+
+## Rotating off-road episodes; the autopilot is paused during each one and
+## resumes from wherever the tuk ends up (it re-acquires a lane after resets).
+func _drive_offroad(delta: float) -> void:
+	var st := damage.state.state
+	if st == VehicleDamageState.State.DISABLED:
+		_disabled_time += delta
+		_max_disabled_s = maxf(_max_disabled_s, _disabled_time)
+	else:
+		_disabled_time = 0.0
+	if guidance.plan != null or guidance.phase != RouteGuidance.Phase.NONE:
+		_gps_corrupt += 1  # no ride is ever accepted in the soak
+	if _episode_left > 0.0:
+		_episode_left -= delta
+		if _episode_kind == 0 or _episode_kind == 1:
+			player.input.throttle = 0.6 if player.speed_kmh < 30.0 else 0.0
+			player.input.steer = 0.0
+			player.input.handbrake = false
+		elif _episode_kind == 2 or _episode_kind == 3:
+			player.input.throttle = 0.6
+			player.input.handbrake = false
+		if _episode_left <= 0.0 and st != VehicleDamageState.State.DISABLED:
+			_end_episode()
+		return
+	if st == VehicleDamageState.State.DISABLED:
+		return
+	_offroad_timer -= delta
+	if _offroad_timer > 0.0:
+		return
+	_offroad_timer = 10.0
+	_episode_kind = _offroad_index % 4
+	_offroad_index += 1
+	_offroad["episodes"] = int(_offroad["episodes"]) + 1
+	autopilot.set_physics_process(false)
+	damage.state.grace_left = 0.0
+	match _episode_kind:
+		0:  # pavement charge at two people (east pavement of the long straight)
+			var z := -60.0 - float(_offroad_index * 37 % 170)
+			for k in 2:
+				var a: HumanAgent = humans._acquire(HumanAgent.Role.SIDEWALK_WALKER, humans.network.nearest_node(Vector3(8.7, 0.15, z - 14.0 - k * 6.0)))
+				if a != null:
+					a.behaviour = humans.get("_pedestrian_behaviour")
+					a.global_position = Vector3(8.7 + k * 0.5, 0.15, z - 14.0 - k * 6.0)
+					a.idle_timer = 6.0
+					a.set_state(HumanAgent.State.IDLE)
+			_launch_soak(Vector3(8.7, 0.6, z), Vector3.FORWARD, 30.0)
+			_offroad["pavement"] = int(_offroad["pavement"]) + 1
+			_episode_left = 3.5
+		1:  # prop strike
+			var pi := _offroad_index % props.nodes.size()
+			var pp := props.home[pi].origin
+			var along := -network.find_reset_transform(pp).basis.z
+			_launch_soak(Vector3(pp.x, 0.6, pp.z) - along * 12.0, along, 28.0)
+			_offroad["props"] = int(_offroad["props"]) + 1
+			_episode_left = 2.5
+		2, 3:  # building crash (disabling) / boundary wall hard hit (damaged)
+			var body_path := "DistrictBoundary/BoundaryBuildings" if _episode_kind == 2 else "DistrictBoundary/BoundaryWalls"
+			var body := network.get_node(body_path)
+			var shape := body.get_child(_offroad_index % body.get_child_count()) as CollisionShape3D
+			var out := -shape.global_transform.basis.z
+			_launch_soak(shape.global_position - out * 16.0, out, 45.0 if _episode_kind == 2 else 24.0)
+			_offroad["crashes" if _episode_kind == 2 else "hard"] = int(_offroad["crashes" if _episode_kind == 2 else "hard"]) + 1
+			_episode_left = 2.0
+
+
+func _launch_soak(pos: Vector3, dir: Vector3, kmh: float) -> void:
+	var d := Vector3(dir.x, 0.0, dir.z).normalized()
+	player.teleport(Transform3D(MathUtil.basis_from_forward(d), Vector3(pos.x, 0.5, pos.z)))
+	player.linear_velocity = d * kmh / 3.6
+	damage.state.grace_left = 0.0  # the launch is a test teleport, not a recovery
+
+
+func _end_episode() -> void:
+	_episode_kind = -1
+	# Back onto the road (a plain teleport, not a recovery) and hand back to the autopilot.
+	player.teleport(network.find_reset_transform(player.global_position))
+	autopilot.set_physics_process(true)
 
 
 ## Every 7 s: a CollisionEvent against the nearest traffic vehicle, cycling
@@ -459,7 +560,8 @@ func _finish() -> void:
 	_expect("pool never leaks", int(_counts["pool_violations"]) == 0 and traffic.pool_capacity() == 24, "violations %d" % _counts["pool_violations"])
 	_expect("no node growth", node_growth <= 2, "growth %d" % node_growth)
 	_expect("active bounded <= 20", int(_counts["max_active"]) <= 20, "max %d" % _counts["max_active"])
-	_expect("population maintained (>= 8 after fill)", int(_counts["min_active_after_fill"]) >= 8, "min %d" % _counts["min_active_after_fill"])
+	if not offroad_mode:  # the off-road soak teleports the tuk across the map
+		_expect("population maintained (>= 8 after fill)", int(_counts["min_active_after_fill"]) >= 8, "min %d" % _counts["min_active_after_fill"])
 	_expect("no visible spawns", traffic.stats_visible_spawns == 0, str(traffic.stats_visible_spawns))
 	_expect("no teleports", int(_counts["teleports"]) == 0, str(_counts["teleports"]))
 	_expect("traffic never overlaps itself", int(_counts["overlaps"]) == 0, str(_counts["overlaps"]))
@@ -474,11 +576,35 @@ func _finish() -> void:
 	if not park_near_junction:
 		# Deliberate close calls / tight gaps are proven in scoring_scenarios_test;
 		# this only checks they also arise naturally with a crude autopilot.
-		_expect("close calls happen naturally (>= 1 per 2 min)", int(_counts["close_call"]) >= int(minutes * 0.5), str(_counts["close_call"]))
+		if not offroad_mode:
+			_expect("close calls happen naturally (>= 1 per 2 min)", int(_counts["close_call"]) >= int(minutes * 0.5), str(_counts["close_call"]))
 	var real_minor := int(_counts["minor"]) - int(_synthetic["minor"])
 	var real_major := int(_counts["major"]) - int(_synthetic["major"])
-	_expect("collisions happen but are not constant (< 6/min)", real_minor + real_major < 6.0 * minutes,
-			"%d minor, %d major" % [real_minor, real_major])
+	if not offroad_mode:  # off-road episodes crash on purpose
+		_expect("collisions happen but are not constant (< 6/min)", real_minor + real_major < 6.0 * minutes,
+				"%d minor, %d major" % [real_minor, real_major])
+	if offroad_mode:
+		_report["offroad"] = {"episodes": _offroad["episodes"], "pavement_charges": _offroad["pavement"], "prop_runs": _offroad["props"],
+				"building_crashes": _offroad["crashes"], "hard_wall_hits": _offroad["hard"], "evasions": humans.stats_evasions,
+				"dives": humans.stats_dives, "props_knocked": props.stats_knocked, "props_respawned": props.stats_respawns,
+				"active_debris_end": props.active_debris(), "damage_light": damage.stats_light, "damage_hard": damage.stats_hard,
+				"damage_disabling": damage.stats_disabling, "disabled_resets": damage.stats_resets, "recoveries": recovery.stats_recoveries,
+				"failsafe": recovery.stats_failsafe, "max_disabled_s": snappedf(_max_disabled_s, 0.1), "gps_corrupt_ticks": _gps_corrupt,
+				"pedestrian_impacts": humans.stats_impacts}
+		print("[Soak] offroad %s" % JSON.stringify(_report["offroad"]))
+		var o: Dictionary = _report["offroad"]
+		_expect("off-road episodes ran", int(o["episodes"]) >= int(duration / 14.0) - 1, str(o["episodes"]))
+		_expect("pedestrians evaded the pavement charges", int(o["evasions"]) + int(o["dives"]) > 0, "%d evades, %d dives" % [o["evasions"], o["dives"]])
+		_expect("props knocked and respawning", int(o["props_knocked"]) > 0, str(o["props_knocked"]))
+		_expect("debris bounded", props.active_debris() <= ImpactPropManager.DEBRIS_POOL, str(props.active_debris()))
+		_expect("building crashes disabled the tuk and were recovered", int(o["disabled_resets"]) >= 1 and int(o["disabled_resets"]) <= int(o["damage_disabling"]) + int(o["damage_hard"]),
+				"%d resets / %d disabling" % [o["disabled_resets"], o["damage_disabling"]])
+		_expect("no stuck recovery (DISABLED < 5 s)", _max_disabled_s < 5.0, "%.1f s" % _max_disabled_s)
+		_expect("no endless reset (recoveries bounded)", recovery.stats_recoveries <= damage.stats_resets + int(_counts["resets"]) + 2,
+				"%d recoveries" % recovery.stats_recoveries)
+		_expect("no failsafe needed", recovery.stats_failsafe == 0, str(recovery.stats_failsafe))
+		_expect("GPS never corrupted", _gps_corrupt == 0, str(_gps_corrupt))
+		_expect("not left disabled at the end", damage.state.state != VehicleDamageState.State.DISABLED or _disabled_time < 4.0, damage.state_name())
 	if true:
 		_report["incidents"] = {"injected": _incident_cycle, "light": incidents.stats_light, "altercations": incidents.stats_altercations,
 				"driver_exits": incidents.stats_driver_exits, "suppressed": incidents.stats_suppressed, "player_left": incidents.stats_player_left,
@@ -498,7 +624,8 @@ func _finish() -> void:
 		_expect("collisions never reward score", true, "score %d" % GameState.score)
 	var hr: Dictionary = _report["humans"]
 	_expect("human pool never leaks", _human_pool_violations == 0 and humans.pool_capacity() >= 16, "violations %d" % _human_pool_violations)
-	_expect("humans bounded (<= max active)", _human_max_active <= humans.config.max_active, "max %d" % _human_max_active)
+	# The off-road soak injects 2 people per pavement charge on top of the population.
+	_expect("humans bounded (<= max active)", _human_max_active <= humans.config.max_active + (2 if offroad_mode else 0), "max %d" % _human_max_active)
 	_expect("no invalid human state transitions", HumanAgent.invalid_transitions == 0, str(HumanAgent.invalid_transitions))
 	_expect("no crossing deadlock (wait < give-up + 2 s)", _human_max_wait < humans.config.give_up_wait_seconds + 2.0, "%.1f s" % _human_max_wait)
 	_expect("nobody stranded while walking (< 5 s still)", _human_max_still_walking < 5.0, "%.1f s" % _human_max_still_walking)

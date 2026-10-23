@@ -175,6 +175,7 @@ func _define_steps() -> void:
 
 	_steps.append({"name": "3 pedestrian reacts to a fast tuk approaching", "timeout": 8.0,
 		"setup": func() -> void:
+			humans.config.emergency_evasion = true
 			_clear_ambient()
 			_steer_line_x = NAN
 			var node: int = long_straight.call(-90.0)
@@ -196,6 +197,8 @@ func _define_steps() -> void:
 
 	_steps.append({"name": "4 humans can never score CLOSE CALL or TIGHT GAP", "timeout": 10.0,
 		"setup": func() -> void:
+			# v0.03A2: forced contact/near pass to verify the v0.02 rules; evasion is tested in pavement_safety_test.
+			humans.config.emergency_evasion = false
 			_clear_ambient()
 			# Two people standing in the carriageway either side of the tuk's line.
 			var x := -5.3
@@ -223,6 +226,8 @@ func _define_steps() -> void:
 
 	_steps.append({"name": "5 pedestrian impact: event, combo reset, person removed", "timeout": 8.0,
 		"setup": func() -> void:
+			# v0.03A2: forced contact/near pass to verify the v0.02 rules; evasion is tested in pavement_safety_test.
+			humans.config.emergency_evasion = false
 			_clear_ambient()
 			_steer_line_x = -5.3
 			scoring.combo.register_event(25)
@@ -268,6 +273,8 @@ func _define_steps() -> void:
 
 	_steps.append({"name": "10 pedestrian impact fails an active ride", "timeout": 30.0,
 		"setup": func() -> void:
+			# v0.03A2: forced contact/near pass to verify the v0.02 rules; evasion is tested in pavement_safety_test.
+			humans.config.emergency_evasion = false
 			var o := _offer_for(&"rushed")
 			var p := o.pickup.global_position
 			_teleport(Vector3(-5.3, 0.4, p.z + 1.0))

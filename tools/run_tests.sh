@@ -47,9 +47,13 @@ run "Human world + passengers (real scene)" --fixed-fps 60 res://tests/scenarios
 run "Input smoke (real scene, InputMap actions)" --fixed-fps 60 res://tests/scenarios/input_smoke_test.tscn
 run "Mobile touch + lifecycle (real scene)" --fixed-fps 60 res://tests/scenarios/mobile_touch_test.tscn
 run "GPS + hire UX + traffic incidents (real scene)" --fixed-fps 60 res://tests/scenarios/gps_incident_test.tscn
+run "HUD safe-area matrix (5 aspect ratios x 6 safe areas)" --fixed-fps 60 res://tests/scenarios/hud_safe_area_test.tscn
+run "World containment + crash damage + recovery + props" --fixed-fps 60 res://tests/scenarios/world_containment_test.tscn
+run "Pavement safety: pedestrian emergency evasion" --fixed-fps 60 res://tests/scenarios/pavement_safety_test.tscn
 run "Mobile touch (forced touch controls)" --fixed-fps 60 res://tests/scenarios/mobile_touch_test.tscn -- --force-touch-controls
 run "Traffic + humans soak (6 min, driving)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360
 run "Traffic + humans + incidents soak (4 min, scripted collisions)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=240 --incidents
+run "Traffic + humans + off-road soak (4 min, pavement / props / crashes)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=240 --offroad
 run "Traffic + humans soak (6 min, junction stress)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 --park-near-junction
 
 echo ""
