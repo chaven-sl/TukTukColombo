@@ -233,6 +233,164 @@ func wire(a: Vector3, b: Vector3, sag: float, thickness: float, color: Color, se
 		prev = p
 
 
+# --- v0.03B1 smooth-shaded primitives (curved bodies read far less "boxy") ---
+
+## Smooth grid surface: `rows` is an Array of PackedVector3Array, all the same
+## length. Normals are averaged from neighbours and oriented away from
+## `inside` (a point inside the closed shape) so the surface faces outward.
+## `wrap` closes each row into a ring.
+func grid(rows: Array, color: Color, wrap: bool, inside: Vector3, colors_per_row: PackedColorArray = PackedColorArray()) -> void:
+	var nr := rows.size()
+	if nr < 2:
+		return
+	var nc := (rows[0] as PackedVector3Array).size()
+	var base := verts.size()
+	for r in nr:
+		var row: PackedVector3Array = rows[r]
+		var prev_row: PackedVector3Array = rows[maxi(r - 1, 0)]
+		var next_row: PackedVector3Array = rows[mini(r + 1, nr - 1)]
+		var col := color if colors_per_row.is_empty() else colors_per_row[r]
+		for c in nc:
+			var cl := (c - 1 + nc) % nc if wrap else maxi(c - 1, 0)
+			var cr := (c + 1) % nc if wrap else mini(c + 1, nc - 1)
+			var du := row[cr] - row[cl]
+			var dv := next_row[c] - prev_row[c]
+			var n := du.cross(dv)
+			if n.length_squared() < 1e-12:
+				n = row[c] - inside
+			n = n.normalized()
+			if n.dot(row[c] - inside) < 0.0:
+				n = -n
+			_v(row[c], n, col, Vector2(float(c) / float(nc), float(r) / float(nr - 1)))
+	var cols := nc if wrap else nc - 1
+	for r in nr - 1:
+		for c in cols:
+			var c1 := (c + 1) % nc
+			var a := base + r * nc + c
+			var b := base + r * nc + c1
+			var d := base + (r + 1) * nc + c
+			var e := base + (r + 1) * nc + c1
+			_tri_out(a, b, e)
+			_tri_out(a, e, d)
+
+
+## Emits triangle i0,i1,i2 front-facing along its vertices' (outward) normal.
+func _tri_out(i0: int, i1: int, i2: int) -> void:
+	var nr := (verts[i1] - verts[i0]).cross(verts[i2] - verts[i0])
+	var navg := normals[i0] + normals[i1] + normals[i2]
+	# Godot front faces are clockwise seen from the front: the right-hand
+	# normal of the emitted order must point away from the viewer.
+	if nr.dot(navg) > 0.0:
+		indices.append_array([i0, i2, i1])
+	else:
+		indices.append_array([i0, i1, i2])
+
+
+## Superellipse ring (n points) in the XY plane: half sizes `h`, exponent `p`
+## (2 = ellipse, 4+ = rounded box). Starts at the bottom, counter-clockwise.
+static func superellipse(h: Vector2, p: float, n: int) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for k in n:
+		var a := -PI * 0.5 + TAU * float(k) / float(n)
+		var ca := cos(a)
+		var sa := sin(a)
+		out.append(Vector2(signf(ca) * pow(absf(ca), 2.0 / p) * h.x, signf(sa) * pow(absf(sa), 2.0 / p) * h.y))
+	return out
+
+
+## Smooth body shell along local Z: each section Vector4(z, centre_y, width,
+## height) becomes a rounded-box ring (exponent `p`, `n` points). Optional
+## flat-ish caps close the ends.
+func shell(xf: Transform3D, sections: Array, p: float, n: int, color: Color, caps := true) -> void:
+	var rows: Array = []
+	var centre := Vector3.ZERO
+	for sec: Vector4 in sections:
+		var ring := PackedVector3Array()
+		for q in superellipse(Vector2(sec.z * 0.5, sec.w * 0.5), p, n):
+			ring.append(xf * Vector3(q.x, sec.y + q.y, sec.x))
+		rows.append(ring)
+		centre += xf * Vector3(0, sec.y, sec.x)
+	centre /= float(sections.size())
+	grid(rows, color, true, centre)
+	if caps:
+		for end in [0, rows.size() - 1]:
+			var ring: PackedVector3Array = rows[end]
+			var sec: Vector4 = sections[end]
+			var cpt := xf * Vector3(0, sec.y, sec.x)
+			var nrm := (cpt - centre).normalized()
+			var ci := _v(cpt, nrm, color)
+			var first := verts.size()
+			for v in ring:
+				_v(v, nrm, color)
+			for k in ring.size():
+				var a := first + k
+				var b := first + (k + 1) % ring.size()
+				var tr := (verts[a] - verts[ci]).cross(verts[b] - verts[ci])
+				if tr.dot(nrm) > 0.0:
+					indices.append_array([ci, b, a])
+				else:
+					indices.append_array([ci, a, b])
+
+
+## Tube along a polyline of frames (each Transform3D: origin = centre, basis
+## X/Y = profile axes). `profile` points are in the frame's XY plane.
+func sweep(frames: Array, profile: PackedVector2Array, color: Color, closed := true) -> void:
+	var rows: Array = []
+	var centre := Vector3.ZERO
+	for f: Transform3D in frames:
+		var ring := PackedVector3Array()
+		for q in profile:
+			ring.append(f * Vector3(q.x, q.y, 0))
+		rows.append(ring)
+		centre += f.origin
+	centre /= float(frames.size())
+	if closed:
+		# Orient each normal away from its own frame centre (works for bends).
+		var base := verts.size()
+		grid(rows, color, true, centre)
+		var nc := profile.size()
+		for r in frames.size():
+			var o: Vector3 = (frames[r] as Transform3D).origin
+			for c in nc:
+				var i := base + r * nc + c
+				if normals[i].dot(verts[i] - o) < 0.0:
+					normals[i] = -normals[i]
+	else:
+		grid(rows, color, false, centre)
+
+
+## Surface of revolution about local Y: `profile` = Vector2(radius, y) from
+## bottom to top, `seg` segments. Smooth normals.
+func lathe(xf: Transform3D, profile: PackedVector2Array, seg: int, color: Color) -> void:
+	var rows: Array = []
+	for q in profile:
+		var ring := PackedVector3Array()
+		for k in seg:
+			var a := TAU * float(k) / float(seg)
+			ring.append(xf * Vector3(cos(a) * q.x, q.y, sin(a) * q.x))
+		rows.append(ring)
+	# Normals: radial for the sidewall, axial where the profile runs inward.
+	var base := verts.size()
+	grid(rows, color, true, xf * Vector3.ZERO)
+	var axis := (xf.basis * Vector3.UP).normalized()
+	var nc := seg
+	for r in profile.size():
+		var c0 := xf * Vector3(0, profile[r].y, 0)
+		for c in nc:
+			var i := base + r * nc + c
+			var radial := (verts[i] - c0).normalized()
+			var dr := profile[mini(r + 1, profile.size() - 1)] - profile[maxi(r - 1, 0)]
+			# Profile tangent (dr) → normal in the (radial, axis) plane.
+			var nn := (radial * dr.y - axis * dr.x).normalized()
+			normals[i] = nn if nn.length_squared() > 0.5 else radial
+	# Re-emit winding consistent with the corrected normals.
+	var first_index := indices.size() - (profile.size() - 1) * nc * 6
+	var tris := indices.slice(first_index)
+	indices.resize(first_index)
+	for t in range(0, tris.size(), 3):
+		_tri_out(tris[t], tris[t + 1], tris[t + 2])
+
+
 ## Shifts every vertex (re-centre a world-space batch on its node).
 func translate(offset: Vector3) -> void:
 	for i in verts.size():

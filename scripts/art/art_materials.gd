@@ -14,13 +14,33 @@ static func get_material(kind: StringName) -> StandardMaterial3D:
 	match kind:
 		&"plaster":
 			m.roughness = 0.88
-		&"paint":  # vehicle paint
-			m.roughness = 0.38
-			m.metallic = 0.15
-			m.metallic_specular = 0.6
-		&"metal":
-			m.roughness = 0.35
-			m.metallic = 0.7
+		&"paint":  # vehicle paint: slightly glossy painted metal
+			m.roughness = 0.3
+			m.metallic = 0.12
+			m.metallic_specular = 0.7
+		&"chrome":  # no sky reflections on mobile: bright, semi-metallic, tight highlight
+			m.roughness = 0.22
+			m.metallic = 0.45
+			m.metallic_specular = 0.9
+		&"rubber":
+			m.roughness = 0.96
+			m.metallic_specular = 0.25
+		&"vinyl":  # seats: soft sheen
+			m.roughness = 0.55
+			m.metallic_specular = 0.55
+		&"glass_clear":  # windscreens: actually see-through
+			m.roughness = 0.05
+			m.metallic_specular = 0.9
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		&"wood":
+			m.roughness = 0.8
+		&"cardboard":  # sacks, boxes, cloth goods
+			m.roughness = 0.95
+			m.metallic_specular = 0.2
+		&"metal":  # shutters, poles, rails: dull painted/galvanised
+			m.roughness = 0.5
+			m.metallic = 0.35
 		&"glass":
 			m.roughness = 0.08
 			m.metallic = 0.3

@@ -18,5 +18,5 @@ time_headway = 1.8
 min_gap = 3.5
 spawn_weight = 1.2
 pool_count = 3
-body_colors = PackedColorArray(0.7, 0.1, 0.08, 1, 0.72, 0.1, 0.09, 1, 0.15, 0.35, 0.65, 1, 0.92, 0.9, 0.85, 1, 0.85, 0.35, 0.55, 1)
+body_colors = PackedColorArray(0.6, 0.055, 0.045, 1, 0.64, 0.06, 0.05, 1, 0.15, 0.35, 0.65, 1, 0.92, 0.9, 0.85, 1, 0.85, 0.35, 0.55, 1)
 is_heavy = true
