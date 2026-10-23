@@ -1,6 +1,6 @@
 # TukTuk Colombo — working instructions
 
-Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03B1.1 — Pettah compression gate**: the market core is one 2.85 m lane each way, reduced at the signalised Market Gate (lane counts change only at junctions — traffic has no merge logic). Awaiting owner approval (`docs/PROTOTYPE_V003B11_REPORT.md`). The game boots into `scenes/districts/fort_pettah/fort_pettah_slice.tscn`; the greybox `prototype_main.tscn` stays for regression tests. v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
+Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.04 — core progression loop** (cash + reputation + career tiers + job tiers + garage + 4×5 upgrades + save v3). Boot → garage → DRIVE → hires → optional return → upgrade → drive. Awaiting owner playtest (`docs/PROTOTYPE_V004_REPORT.md`). The game boots into `scenes/districts/fort_pettah/fort_pettah_slice.tscn`; the greybox `prototype_main.tscn` stays for regression tests. v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
 
 ## Repository identity
 
@@ -40,6 +40,9 @@ tools/run_tests.sh
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/pavement_safety_test.tscn   # pedestrian emergency evasion
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/fort_pettah_test.tscn   # v0.03B art/presentation/audio checks
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/market_compression_test.tscn   # narrowed Pettah market: lanes, routing, traffic, skill laps
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --script res://tests/sim/economy_sim.gd [-- --write-report]   # v0.04 economy pacing sim → docs/economy_simulation.md
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/career_flow_test.tscn   # garage → drive → hires → upgrade → reopen
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/upgrade_dynamics_test.tscn   # upgrades on the real tuk
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction | --incidents | --offroad | --fort-pettah]
 # Fort–Pettah quality-gate screenshots (windowed) → user://test_results/screens/v003b_gate_*.png
 /Applications/Godot.app/Contents/MacOS/Godot --path . --resolution 1280x720 res://tests/scenarios/fort_pettah_screens.tscn -- --gates
@@ -79,6 +82,7 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 - **Art follows physics (v0.03B).** Collision and visual geometry are separate: district art is merged visual chunks (`DistrictChunks`) + simple box proxies (`BuildingProxies`/`PropProxies`/`ForecourtProxies`); vehicles are physics root + `Visual/HeroArt` / `Body`; people are `HumanAgent` + `CharacterRig`. Art never adds colliders or changes mass/CoM. All art is procedural GDScript (no downloads, no Blender); rules in `docs/art_bible.md`, budgets in `docs/fort_pettah_art_budget.md`.
 - **Audio is presentation (v0.03B).** `DistrictAudio` reads telemetry + EventBus hooks only; buses Vehicle/Traffic/Ambience/UI (`default_bus_layout.tres`); fixed voice pools, range limits, cooldowns; sounds are original procedural WAVs from `tools/audiogen/`. No music.
 - **Mobile GPU budget (v0.03B1).** The reference Mali-G610 is pixel-bound: medium tier renders 3D at 0.67 + FSR. Spend art budget on geometry/silhouettes, not per-pixel effects. Measure with `PerfSections` + render GPU timings (`TIME_PROCESS` includes the vsync wait — never quote it as CPU work). Docs must quote the real `.tres` values (unit-tested).
+- **Progression (v0.04).** Two currencies only: cash (spendable) and reputation (never spent or deducted). Economy rules are pure classes in `scripts/economy/` (`RidePayout`, `CareerProfile`, `JobTiers`, `EffectiveVehicleConfig`) with tunables in `resources/economy/`. Upgrades never touch `TukController` code or the base tuning resource: `EffectiveVehicleConfig.build(base, levels)` returns a copy; roll/rollover/mass/grip fields are protected (tested). Purchases are atomic, saved at once, and name the expected level (no double buys). Pedestrian danger never pays. Re-run `tests/sim/economy_sim.gd` after any economy change. Headless runs use their own save slot.
 - **Debuggable.** F1 overlay / F2 traffic / F3 vehicle; debug code lives in `scripts/debug/` and is removable.
 
 ## Directory rules
@@ -89,7 +93,7 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 | `data/<domain>/` | Resource **class** scripts (schemas) |
 | `resources/<domain>/` | Resource **instances** (`.tres`) |
 | `scenes/<domain>/` | scenes; a scene's root script may sit beside it |
-| `scripts/<domain>/` | runtime code: `player camera traffic road world humans rides navigation scoring performance ui input platform debug utilities art audio districts` |
+| `scripts/<domain>/` | runtime code: `player camera traffic road world humans rides navigation scoring performance ui input platform debug utilities art audio districts economy garage` |
 | `locale/` | `en.po si.po ta.po` |
 | `tests/unit/` | headless logic tests (`test_*.gd`, extend `tests/test_case.gd`) |
 | `tests/scenarios/` | scene-based simulation tests (autopilot lives in `scripts/debug/` so the device perf test can use it) |
@@ -128,7 +132,7 @@ All speeds presented to people — docs, reports, test output, debug HUD, tuning
 
 ## Current phase & next step
 
-Delivered: v0.01, v0.01a, v0.02, v0.03A, v0.03A1, v0.03A2, v0.03B Fort–Pettah Gateway, v0.03B1 performance + visual quality (`docs/PROTOTYPE_V003B1_REPORT.md`). **Next: owner installs the debug APK, judges the look and answers the 10 questions in the v0.03B1 report.** Do not start economy, garage, progression, monetisation, police, weather, day/night, map expansion or v0.04 without approval.
+Delivered: v0.01, v0.01a, v0.02, v0.03A, v0.03A1, v0.03A2, v0.03B Fort–Pettah Gateway, v0.03B1 performance + visual quality, v0.03B1.1 Pettah compression, v0.04 core progression loop (`docs/PROTOTYPE_V004_REPORT.md`). **Next: owner playtests the progression loop and answers the 10 questions in the v0.04 report.** Do not add another district, monetisation, ads, IAP, skins, police or multiplayer without approval. Do not start economy, garage, progression, monetisation, police, weather, day/night, map expansion or v0.04 without approval.
 
 ## Known technical debt
 

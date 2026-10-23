@@ -30,6 +30,10 @@ Results also go to `user://test_results/*.json` (macOS: `~/Library/Application S
 
 Windowed runs (`godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]`) add FPS, CPU-time and draw-call figures and save screenshots.
 
+## After v0.04 (2026-10-23, Apple M2)
+
+All **22 stages** pass. Unit **124 tests / 1,083 assertions** (new: `test_economy`, `test_upgrades`, v3 save tests). New stages: `tests/sim/economy_sim.gd` (offline economy pacing, medians over 200 careers → `docs/economy_simulation.md`), `career_flow_test` (garage → drive → hires → garage → upgrade → drive → reopen), `upgrade_dynamics_test` (upgrades on the real tuk; level 5 still rolls over). Headless runs use a fresh `save_headless` slot per process, so stages never inherit career state.
+
 ## After v0.03B1.1 (2026-10-23, Apple M2)
 
 All **19 stages** pass (new: `market_compression_test`, 38 checks — narrowed market geometry, junction-arbitrated lane reduction, routing, resets, pedestrian network, 150 s live two-way traffic, 120 s market skill laps). The Fort–Pettah soak's scripted building and wall episodes now always run up from a legal lane or from inside the district.

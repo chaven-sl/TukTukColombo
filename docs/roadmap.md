@@ -13,7 +13,8 @@ Each phase ends with a human playtest gate. Do not start the next phase without 
 | **v0.03B** (done, awaiting owner visual/playtest approval) | Fort–Pettah Gateway: first production-quality art + audio slice | new ~940 m district (station frontage, Olcott-style bus corridor, Pettah market, signalised junction, service connector), procedural modular building/street kits, hero tuk + driver, traffic fleet art, stylised animated people, seated passenger, trilingual signage (Noto, OFL), tropical late-morning lighting, procedural audio layer, UI/GPS polish |
 | **v0.03B1** (done, awaiting owner approval) | Performance recovery + visual quality | device A/B root cause (GPU pixel-bound), medium 0.67 + FSR, hero tuk v2, traffic art v2, Fort Station v2, Pettah density (deep shops, static crowd, layered spill), humans v2, materials/lighting, compact HUD |
 | **v0.03B1.1** (done, awaiting owner approval) | Pettah compression | market core one 2.85 m lane each way via a signalised Market Gate, loading bays, kerbside pressure, buses kept to arterials, market tests |
-| v0.04 | District vertical slice | first Colombo-flavoured road set built from `RoadSegment` chains, traffic lane changes, denser street life (LOD people) |
+| **v0.04** (done, awaiting owner playtest) | Core progression loop | cash + reputation, 5 career levels, STANDARD/EXPRESS/PREMIUM jobs, garage home screen, ENGINE/BRAKES/HANDLING/SUSPENSION ×5 via an upgrade modifier layer, save v3, economy simulation |
+| next | District vertical slice | first Colombo-flavoured road set built from `RoadSegment` chains, traffic lane changes, denser street life (LOD people) |
 | later | Progression and content | upgrades, customisation, districts, weather/day-night, then (only with explicit approval) platform services behind `PlatformServices` |
 
 Out of scope until explicitly approved: ads, analytics SDKs, IAP, accounts, cloud save, leaderboards, live ops, loot boxes, fuel timers, multiplayer.
