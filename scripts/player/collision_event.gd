@@ -14,6 +14,13 @@ var position := Vector3.ZERO
 ## Direction of the impulse the player received (horizontal, normalised).
 var impulse_direction := Vector3.ZERO
 var other_agent_id := -1
+## v0.03A2: the body that was hit (null for rollovers). Classified by the world
+## layer (WorldSurface.of_body); the controller itself stays map-agnostic.
+var other_body: Node3D = null
+## Speed along the tuk's own forward axis just before the impact (km/h), and
+## how head-on the impact was (1 = straight into the front, 0 = glancing).
+var approach_speed_kmh := 0.0
+var frontal := 0.0
 var timestamp := 0.0
 
 

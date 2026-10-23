@@ -79,6 +79,7 @@ func setup(p_player: TukController, p_offers: PassengerOfferManager, p_humans: H
 	EventBus.pedestrian_danger.connect(_on_pedestrian_danger)
 	EventBus.pedestrian_impact.connect(_on_pedestrian_impact)
 	EventBus.traffic_incident_started.connect(_on_traffic_incident)
+	EventBus.vehicle_damage_changed.connect(_on_vehicle_damage)
 	player.roll_state_changed.connect(_on_roll_state)
 
 
@@ -148,7 +149,9 @@ func _tick_en_route() -> void:
 		offers.release_back(offer)
 		_cancel_offer()
 		return
-	if d <= config.pickup_radius and player.speed_kmh <= config.pickup_max_speed_kmh and not player.is_tipped:
+	# A passenger jumping out of the way (v0.03A2) boards only once settled again.
+	if d <= config.pickup_radius and player.speed_kmh <= config.pickup_max_speed_kmh and not player.is_tipped \
+			and agent.state == HumanAgent.State.WAITING_FOR_PICKUP:
 		var behaviour := agent.behaviour as PassengerBehaviour
 		behaviour.begin_boarding(agent, _seat, _boarding_point, config.boarding_seconds)
 		set_state(RideState.BOARDING)
@@ -214,7 +217,13 @@ func _finish(outcome: RideResult.Outcome, reason: RideResult.FailReason) -> void
 		_say(reactions.arrival_key(result.satisfaction.final_score))
 		set_state(RideState.COMPLETED)
 	else:
-		_say("REACT_COLLISION" if reason == RideResult.FailReason.ROLLOVER else "REACT_PEDESTRIAN_DANGER")
+		match reason:
+			RideResult.FailReason.ROLLOVER:
+				_say("REACT_COLLISION")
+			RideResult.FailReason.VEHICLE_DISABLED:
+				_say(offer.profile.collision_reaction_key if not offer.profile.collision_reaction_key.is_empty() else "REACT_COLLISION")
+			_:
+				_say("REACT_PEDESTRIAN_DANGER")
 		set_state(RideState.FAILED)
 	last_result = result
 	result_ready.emit(result)
@@ -298,6 +307,13 @@ func _on_pedestrian_impact(_event: PedestrianEvent) -> void:
 func _on_traffic_incident(tier: int, _pos: Vector3) -> void:
 	if state == RideState.ACTIVE and tier >= IncidentRules.Tier.MODERATE:
 		reactions.on_incident()
+
+
+## v0.03A2: a disabling crash (tuk needs a road reset) ends an active ride —
+## no fare. Earlier states simply continue/cancel after the reset.
+func _on_vehicle_damage(damage_state: int) -> void:
+	if state == RideState.ACTIVE and damage_state == VehicleDamageState.State.DISABLED:
+		_finish(RideResult.Outcome.FAILED, RideResult.FailReason.VEHICLE_DISABLED)
 
 
 func _on_roll_state(roll_state: TukController.RollState) -> void:

@@ -3,7 +3,7 @@ extends RefCounted
 ## Outcome of one ride, for the result card, saves and tests.
 
 enum Outcome { COMPLETED, FAILED }
-enum FailReason { NONE, PEDESTRIAN_IMPACT, ROLLOVER }
+enum FailReason { NONE, PEDESTRIAN_IMPACT, ROLLOVER, VEHICLE_DISABLED }
 
 var outcome: Outcome = Outcome.COMPLETED
 var fail_reason: FailReason = FailReason.NONE

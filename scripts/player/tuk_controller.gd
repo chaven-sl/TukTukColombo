@@ -360,6 +360,10 @@ func _on_body_entered(body: Node) -> void:
 	ev.position = global_position
 	ev.impulse_direction = (-delta_v).normalized()
 	ev.other_agent_id = agent.agent_id if agent != null else -1
+	ev.other_body = body as Node3D
+	var fwd := -global_transform.basis.z
+	ev.approach_speed_kmh = absf(_prev_velocity.dot(fwd)) * 3.6
+	ev.frontal = clampf(absf(ev.impulse_direction.dot(fwd)), 0.0, 1.0)
 	ev.timestamp = now
 	if ev.severity == CollisionEvent.Severity.MAJOR:
 		_pending_major_slowdown = true
