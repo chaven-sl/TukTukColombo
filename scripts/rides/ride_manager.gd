@@ -39,6 +39,9 @@ const TRANSITIONS := {
 
 @export var config: RideConfig
 
+## v0.04: payout composition (cash + reputation) for finished rides.
+var economy: EconomyConfig
+var career_level := 1
 var player: TukController
 var offers: PassengerOfferManager
 var humans: HumanManager
@@ -214,6 +217,9 @@ func _finish(outcome: RideResult.Outcome, reason: RideResult.FailReason) -> void
 		result.base_fare = RideResult.calculate_base_fare(offer.route_m, config)
 		result.adjustment = RideResult.calculate_adjustment(result.base_fare, result.satisfaction.final_score, config)
 		result.final_fare = maxi(result.base_fare + result.adjustment, 0)
+	if economy != null:
+		RidePayout.apply(result, offer.tier, career_level, economy)
+	if outcome == RideResult.Outcome.COMPLETED:
 		_say(reactions.arrival_key(result.satisfaction.final_score))
 		set_state(RideState.COMPLETED)
 	else:

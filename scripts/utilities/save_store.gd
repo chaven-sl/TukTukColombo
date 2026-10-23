@@ -13,7 +13,7 @@ extends RefCounted
 ## bak -> promote tmp to primary. Load flow: primary -> tmp -> bak -> defaults.
 ## Migrations upgrade older schema versions step by step.
 
-const CURRENT_SCHEMA_VERSION := 2
+const CURRENT_SCHEMA_VERSION := 3
 
 enum LoadResult {
 	LOADED_PRIMARY,    ## primary was valid
@@ -73,7 +73,14 @@ static func default_document() -> Dictionary:
 			"prototype_fares_total": 0,
 			"passenger_type_completions": {"rushed": 0, "careful": 0, "thrill_seeker": 0},
 		},
+		# v3 (prototype v0.04): career progression — cash, reputation, upgrades.
+		"career": CareerProfile.default_section(_economy()),
 	}
+
+
+static func _economy() -> EconomyConfig:
+	var c := load("res://resources/economy/economy_config.tres") as EconomyConfig
+	return c if c != null else EconomyConfig.new()
 
 
 func load_document() -> LoadResult:
@@ -176,6 +183,8 @@ static func migrate(doc: Dictionary, from_version: int) -> Dictionary:
 				doc = _migrate_0_to_1(doc)
 			1:
 				doc = _migrate_1_to_2(doc)
+			2:
+				doc = _migrate_2_to_3(doc)
 		version += 1
 	doc["schema_version"] = CURRENT_SCHEMA_VERSION
 	return doc
@@ -203,6 +212,14 @@ static func _migrate_1_to_2(doc: Dictionary) -> Dictionary:
 	if not stats.has("passenger_type_completions"):
 		stats["passenger_type_completions"] = {"rushed": 0, "careful": 0, "thrill_seeker": 0}
 	doc["prototype_stats"] = stats
+	return doc
+
+
+## v2 -> v3 (v0.04): adds the career section — starting cash, zero
+## reputation, all upgrades at level 0. Every v2 value is kept as is.
+static func _migrate_2_to_3(doc: Dictionary) -> Dictionary:
+	if typeof(doc.get("career")) != TYPE_DICTIONARY:
+		doc["career"] = CareerProfile.default_section(_economy())
 	return doc
 
 
@@ -245,6 +262,13 @@ static func normalise(doc: Dictionary) -> Dictionary:
 							if typeof(sub_value) == TYPE_FLOAT or typeof(sub_value) == TYPE_INT:
 								merged[sub] = int(sub_value)
 						target[key] = merged
+	# v3 invariants: never negative cash/reputation, upgrade levels in range.
+	var career: Dictionary = result["career"]
+	career["cash"] = maxi(int(career["cash"]), 0)
+	career["reputation"] = maxi(int(career["reputation"]), 0)
+	var ups: Dictionary = career["upgrades"]
+	for id in ups.keys():
+		ups[id] = clampi(int(ups[id]), 0, 5)
 	result["schema_version"] = CURRENT_SCHEMA_VERSION
 	return result
 

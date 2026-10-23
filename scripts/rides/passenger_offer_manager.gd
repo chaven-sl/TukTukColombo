@@ -14,6 +14,9 @@ signal offers_changed()
 @export var initial_destination_ids: Array[StringName] = []
 @export var config: RideConfig
 
+## v0.04: job tiers depend on the player's career level.
+var economy: EconomyConfig
+var career_level := 1
 var offers: Array[PassengerOffer] = []
 var network: PedestrianNetwork
 var road: RoadNetwork
@@ -38,6 +41,7 @@ func setup(p_network: PedestrianNetwork, p_road: RoadNetwork, p_humans: HumanMan
 			push_warning("[PassengerOfferManager] no pickup spot for %s" % profiles[i].id)
 			continue
 		var offer := PassengerOffer.new()
+		offer.base_profile = profiles[i]
 		offer.profile = profiles[i]
 		offer.pickup = pickup
 		var first := network.find_spot(initial_destination_ids[i]) if i < initial_destination_ids.size() else null
@@ -61,6 +65,12 @@ func _assign_destination(offer: PassengerOffer, preferred: PedestrianSpot) -> vo
 		chosen = valid[rng.randi() % valid.size()]
 	offer.destination = chosen
 	offer.route_m = float(road.route(offer.pickup.global_position, chosen.global_position)["distance"])
+	# v0.04 job tier for this hire (career-level gated); the passenger's
+	# expectations come from a tiered copy of their profile.
+	if offer.base_profile == null:
+		offer.base_profile = offer.profile
+	offer.tier = JobTiers.roll(career_level, rng, economy) if economy != null else JobTiers.Tier.STANDARD
+	offer.profile = JobTiers.profile_for(offer.base_profile, offer.tier, economy) if economy != null else offer.base_profile
 
 
 func _spawn_passenger(offer: PassengerOffer) -> bool:

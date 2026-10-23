@@ -17,6 +17,12 @@ var adjustment := 0
 var final_fare := 0
 ## Translation key summarising the driving style.
 var style_key := ""
+## v0.04 economy (RidePayout): job tier, explained payout lines
+## [[translation key, Rs.], …], cash and reputation actually earned.
+var job_tier: int = 0
+var payout_lines: Array = []
+var cash_earned := 0
+var reputation_earned := 0
 
 
 static func calculate_base_fare(route_distance_m: float, c: RideConfig) -> int:

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EconomyConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/economy/economy_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+clean_ride_bonus = 110
+smooth_stop_bonus = 55
+fast_fare_bonus = 90
+close_call_bonus = 32
+tight_gap_bonus = 55
+combo_bonus_per_chain = 14
+skill_bonus_cap = 280
+minor_collision_penalty = 70
+major_collision_penalty = 140

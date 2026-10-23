@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/economy/upgrade_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"engine"
+display_key = "UPGRADE_ENGINE"
+description_key = "UPGRADE_ENGINE_DESC"
+stat_key = "STAT_SPEED"
+improvement_key = "UPGRADE_ENGINE_IMPROVE"
+fields = PackedStringArray("top_speed_kmh", "drive_force", "engine_power_w")
+per_level = PackedFloat32Array(2.5, 0.04, 0.06)
+modes = PackedStringArray("add", "mul", "mul")
+costs = PackedInt32Array(2500, 4300, 7000, 10200, 14400)

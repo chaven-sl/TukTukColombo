@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/economy/upgrade_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"handling"
+display_key = "UPGRADE_HANDLING"
+description_key = "UPGRADE_HANDLING_DESC"
+stat_key = "STAT_HANDLING"
+improvement_key = "UPGRADE_HANDLING_IMPROVE"
+fields = PackedStringArray("steering_response", "cornering_stiffness", "yaw_damping")
+per_level = PackedFloat32Array(0.05, 0.03, 0.06)
+modes = PackedStringArray("mul", "mul", "mul")
+costs = PackedInt32Array(2500, 4300, 7000, 10200, 14400)

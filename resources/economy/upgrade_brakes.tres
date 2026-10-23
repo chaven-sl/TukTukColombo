@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/economy/upgrade_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"brakes"
+display_key = "UPGRADE_BRAKES"
+description_key = "UPGRADE_BRAKES_DESC"
+stat_key = "STAT_BRAKING"
+improvement_key = "UPGRADE_BRAKES_IMPROVE"
+fields = PackedStringArray("brake_force", "handbrake_force")
+per_level = PackedFloat32Array(0.07, 0.04)
+modes = PackedStringArray("mul", "mul")
+costs = PackedInt32Array(2500, 4300, 7000, 10200, 14400)

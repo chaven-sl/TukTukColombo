@@ -4,3 +4,6 @@
 
 [resource]
 script = ExtResource("1")
+# v0.04 economy: fare values scaled for the progression loop (formula unchanged).
+pickup_fee = 320.0
+fare_per_km = 600.0

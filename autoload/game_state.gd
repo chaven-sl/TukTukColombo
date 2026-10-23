@@ -5,6 +5,9 @@ extends Node
 
 signal pause_changed(paused: bool)
 signal debug_flags_changed()
+## v0.04: cash / reputation / upgrades changed (HUD wallet, garage).
+signal career_changed()
+signal career_level_up(level: int)
 
 const AUTOSAVE_INTERVAL := 20.0
 
@@ -24,6 +27,16 @@ var _dirty := false
 var _autosave_timer := 0.0
 
 
+## v0.04 career progression (persistent, in the save's "career" section).
+var economy: EconomyConfig = preload("res://resources/economy/economy_config.tres")
+var career: CareerProfile
+## Session totals for the garage summary.
+var session_cash := 0
+var session_reputation := 0
+var session_collisions := 0
+var session_upgrades := 0
+## Set when the player returns from the street; the garage shows it once.
+var has_session_summary := false
 var session_rides_completed := 0
 var session_rides_failed := 0
 var session_fares := 0
@@ -37,10 +50,18 @@ func _ready() -> void:
 	EventBus.ride_finished.connect(_on_ride_finished)
 	EventBus.pedestrian_impact.connect(_on_pedestrian_impact)
 	debug_hud_visible = bool(SaveManager.get_setting("show_debug_hud", false))
+	career = CareerProfile.new(SaveManager.career_section(), economy)
+	EventBus.collision_event.connect(func(e: CollisionEvent) -> void:
+		if e.kind != CollisionEvent.Kind.ROLLOVER:
+			session_collisions += 1)
 	TranslationServer.set_locale(str(SaveManager.get_setting("locale", "en")))
 
 
 func reset_session() -> void:
+	session_cash = 0
+	session_reputation = 0
+	session_collisions = 0
+	session_upgrades = 0
 	session_rides_completed = 0
 	session_rides_failed = 0
 	session_fares = 0
@@ -123,6 +144,24 @@ func flush_stats() -> void:
 	SaveManager.save_now()
 
 
+## Atomic upgrade purchase, persisted immediately. `expected_level` guards
+## against double purchases from rapid taps.
+func purchase_upgrade(id: StringName, expected_level: int) -> CareerProfile.Purchase:
+	var r := career.purchase(id, expected_level)
+	if r == CareerProfile.Purchase.OK:
+		session_upgrades += 1
+		print("[Economy] bought %s level %d → cash Rs. %d" % [id, career.level_of(id), career.cash()])
+		SaveManager.save_now()
+		career_changed.emit()
+	return r
+
+
+## Leaving the street for the garage: persist everything, keep a summary.
+func prepare_garage_return() -> void:
+	flush_stats()
+	has_session_summary = true
+
+
 ## Unsafe-driving incident. Recorded even when no ride is active.
 func _on_pedestrian_impact(_event: PedestrianEvent) -> void:
 	session_pedestrian_impacts += 1
@@ -137,7 +176,19 @@ func _on_ride_finished(result: RideResult) -> void:
 	else:
 		session_rides_failed += 1
 	_unflushed_rides.append(result)
-	_dirty = true
+	# v0.04: the career is credited immediately and saved right away — money
+	# and reputation are never lost to a crash or a killed app.
+	var level_before := career.career_level()
+	career.apply_ride(result)
+	session_cash += result.cash_earned
+	session_reputation += result.reputation_earned
+	print("[Economy] ride %s tier %s: Rs. %d, +%d ★ → cash Rs. %d, ★ %d, level %d, avg Rs. %.0f/ride, ~%d rides to next upgrade" % [
+		RideResult.Outcome.keys()[result.outcome], JobTiers.Tier.keys()[result.job_tier], result.cash_earned, result.reputation_earned,
+		career.cash(), career.reputation(), career.career_level(), career.average_earnings(), career.rides_to_next_upgrade()])
+	if career.career_level() > level_before:
+		career_level_up.emit(career.career_level())
+	career_changed.emit()
+	flush_stats()
 
 
 func _persist_ride(result: RideResult) -> void:

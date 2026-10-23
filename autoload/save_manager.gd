@@ -10,7 +10,19 @@ var last_load_result: int = SaveStore.LoadResult.CREATED_DEFAULT
 
 
 func _ready() -> void:
-	store = SaveStore.new("user://", "save_v1")
+	# Automated (headless) runs never touch the player's progression: they
+	# use their own save slot. `-- --save-slot=NAME` picks one explicitly.
+	var slot := "save_headless" if DisplayServer.get_name() == "headless" else "save_v1"
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--save-slot="):
+			slot = arg.get_slice("=", 1)
+	store = SaveStore.new("user://", slot)
+	if slot == "save_headless":
+		# Every automated run starts from a clean career: stages must not
+		# inherit cash / upgrades / reputation from an earlier test process.
+		for path in [store.primary_path(), store.backup_path(), store.temp_path(), store.corrupt_path()]:
+			if FileAccess.file_exists(path):
+				DirAccess.remove_absolute(path)
 	last_load_result = store.load_document()
 	print("[SaveManager] load: %s" % SaveStore.LoadResult.keys()[last_load_result])
 
@@ -29,6 +41,11 @@ func get_stat(key: String, default_value: Variant = 0) -> Variant:
 
 func set_stat(key: String, value: Variant) -> void:
 	_section("prototype_stats")[key] = value
+
+
+## v0.04 career section (CareerProfile wraps it; same dictionary instance).
+func career_section() -> Dictionary:
+	return _section("career")
 
 
 func save_now() -> bool:
