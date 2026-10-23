@@ -1,4 +1,4 @@
-[gd_scene load_steps=45 format=3]
+[gd_scene load_steps=52 format=3]
 
 [ext_resource type="Script" path="res://scenes/prototype/prototype_main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/road/test_track.tscn" id="2_track"]
@@ -42,6 +42,12 @@
 [ext_resource type="Script" path="res://scripts/traffic/traffic_incident_manager.gd" id="40_incidents"]
 [ext_resource type="Resource" path="res://resources/traffic/incident_config.tres" id="41_inccfg"]
 [ext_resource type="Script" path="res://scripts/ui/incident_bubbles.gd" id="42_bubbles"]
+[ext_resource type="Script" path="res://scripts/world/world_recovery_manager.gd" id="43_recovery"]
+[ext_resource type="Script" path="res://scripts/player/vehicle_damage_manager.gd" id="44_damage"]
+[ext_resource type="Resource" path="res://resources/vehicles/vehicle_damage.tres" id="45_damagecfg"]
+[ext_resource type="Script" path="res://scripts/player/crash_effects.gd" id="46_crashfx"]
+[ext_resource type="Script" path="res://scripts/world/impact_prop_manager.gd" id="47_props"]
+[ext_resource type="Script" path="res://scripts/ui/notification_presenter.gd" id="48_notify"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
@@ -142,3 +148,19 @@ config = ExtResource("41_inccfg")
 
 [node name="IncidentBubbles" type="Node3D" parent="."]
 script = ExtResource("42_bubbles")
+
+[node name="WorldRecovery" type="Node" parent="."]
+script = ExtResource("43_recovery")
+
+[node name="VehicleDamage" type="Node" parent="."]
+script = ExtResource("44_damage")
+config = ExtResource("45_damagecfg")
+
+[node name="CrashEffects" type="Node3D" parent="."]
+script = ExtResource("46_crashfx")
+
+[node name="ImpactProps" type="Node3D" parent="."]
+script = ExtResource("47_props")
+
+[node name="Notifications" type="CanvasLayer" parent="."]
+script = ExtResource("48_notify")

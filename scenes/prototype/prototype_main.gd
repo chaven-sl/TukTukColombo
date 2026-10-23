@@ -22,6 +22,11 @@ extends Node3D
 @onready var perf_test: DevicePerfTest = $DevicePerfTest
 @onready var guidance: RouteGuidance = $RouteGuidance
 @onready var incidents: TrafficIncidentManager = $TrafficIncidentManager
+@onready var recovery: WorldRecoveryManager = $WorldRecovery
+@onready var damage: VehicleDamageManager = $VehicleDamage
+@onready var crash_effects: CrashEffects = $CrashEffects
+@onready var props: ImpactPropManager = $ImpactProps
+@onready var notifications: NotificationPresenter = $Notifications
 
 ## LOW, MEDIUM, HIGH (indexed by GraphicsProfile.Tier).
 @export var graphics_profiles: Array[Resource] = []
@@ -40,7 +45,7 @@ func _ready() -> void:
 	if perf_seconds > 0.0:
 		_use_fixed_seeds()
 	network.build()
-	player.reset_pose_provider = network.find_reset_transform
+	player.reset_pose_provider = network.find_reset_transform  # replaced by WorldRecoveryManager below
 	var spawn := network.get_node_or_null("PlayerSpawn") as Marker3D
 	if spawn != null:
 		player.teleport(spawn.global_transform)
@@ -56,12 +61,17 @@ func _ready() -> void:
 	offers.setup(pedestrians, network, humans, offer_seed)
 	rides.setup(player, offers, humans, network, scoring)
 	hud.setup(player, scoring)
+	recovery.setup(network, player, traffic, humans)
+	damage.setup(player, recovery, crash_effects)
+	props.setup(network, player, camera, network.scenery_seed + 2)
+	hud.notifications = notifications
 	guidance.setup(rides, network, player)
 	incidents.setup(traffic, humans, player, incident_seed)
 	ride_hud.setup(rides, offers, self, guidance)
 	debug_overlay.setup(player, traffic, network, scoring, near_miss)
 	debug_overlay.setup_world(humans, rides, pedestrians)
 	debug_overlay.setup_v003a1(guidance, incidents, mobile_controls.state)
+	debug_overlay.setup_v003a2(damage, recovery, props, humans)
 	_setup_platform()
 	GameState.reset_session()
 	if perf_seconds > 0.0:
@@ -73,6 +83,7 @@ func _setup_platform() -> void:
 	set_touch_mode(InputMode.wants_touch())
 	touch_input.vehicle = player
 	touch_input.state = mobile_controls.state
+	mobile_controls.layout_changed.connect(hud.on_touch_controls_layout)
 	mobile_controls.setup(player, rides)
 	perf_monitor.traffic = traffic
 	perf_monitor.humans = humans

@@ -25,6 +25,9 @@ var _pedestrians: PedestrianNetwork
 var _guidance: RouteGuidance
 var _incidents: TrafficIncidentManager
 var _touch: TouchControlState
+var _damage: VehicleDamageManager
+var _recovery: WorldRecoveryManager
+var _props: ImpactPropManager
 
 
 func setup(player: TukController, traffic: TrafficManager, network: RoadNetwork,
@@ -59,6 +62,13 @@ func setup_v003a1(guidance: RouteGuidance, incidents: TrafficIncidentManager, to
 	_guidance = guidance
 	_incidents = incidents
 	_touch = touch
+
+
+func setup_v003a2(damage: VehicleDamageManager, recovery: WorldRecoveryManager, props: ImpactPropManager, humans: HumanManager) -> void:
+	_damage = damage
+	_recovery = recovery
+	_props = props
+	_humans = humans
 
 
 func _ready() -> void:
@@ -222,6 +232,15 @@ func _compose_text() -> String:
 		lines.append("  light %d  altercations %d  exits %d  suppressed %d  follower horns %d  timeouts %d  world ignored %d" % [
 				_incidents.stats_light, _incidents.stats_altercations, _incidents.stats_driver_exits, _incidents.stats_suppressed,
 				_incidents.stats_follower_horns, _incidents.stats_timeouts, _incidents.stats_ignored_world])
+	if _damage != null:
+		lines.append("")
+		lines.append("WORLD")
+		lines.append("  surface %s   damage %s (light %d hard %d disabling %d, resets %d)   recoveries %d (failsafe %d, last %s)" % [
+				WorldSurface.Type.keys()[WorldSurface.classify_point(_network, _player.global_position)], _damage.state_name(),
+				_damage.stats_light, _damage.stats_hard, _damage.stats_disabling, _damage.stats_resets,
+				_recovery.stats_recoveries, _recovery.stats_failsafe, _recovery.last_reason])
+		lines.append("  props knocked %d wobbles %d respawns %d debris %d   evasions %d dives %d" % [_props.stats_knocked,
+				_props.stats_wobbles, _props.stats_respawns, _props.active_debris(), _humans.stats_evasions, _humans.stats_dives])
 	lines.append("")
 	lines.append("F1 overlay  F2 traffic  F3 vehicle  F4 humans  E accept ride  R reset  Esc pause")
 	return "\n".join(lines)

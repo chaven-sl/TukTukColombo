@@ -344,3 +344,23 @@ msgstr "Say sorry, putha, and let's go."
 
 msgid "REACT_INCIDENT_THRILL"
 msgstr "Ha! Now we have a show."
+
+# --- v0.03A2 crash consequences and notifications ---
+
+msgid "UI_TUK_DAMAGED"
+msgstr "TUK DAMAGED"
+
+msgid "UI_TUK_DISABLED"
+msgstr "TUK DISABLED"
+
+msgid "UI_RESETTING_TO_ROAD"
+msgstr "RESETTING TO ROAD"
+
+msgid "UI_NOTIFY_ON_BOARD"
+msgstr "Passenger on board — follow the GPS"
+
+msgid "UI_NOTIFY_MAJOR_INCIDENT"
+msgstr "You hit a car — expect an argument!"
+
+msgid "FAIL_VEHICLE_DISABLED"
+msgstr "The tuk was disabled in a crash"

@@ -43,3 +43,13 @@ signal traffic_incident_resolved(tier: int)
 signal traffic_horn(world_position: Vector3, pattern: int)
 ## A driver shouted a line (translation key) — bubble now, voice later.
 signal driver_shout(world_position: Vector3, line_key: String)
+
+# --- v0.03A2 world consequences (presentation/audio hooks; never a reward) ---
+## A world impact was classified. `tier` is VehicleDamageState.Tier, `surface` WorldSurface.Type.
+signal world_impact(tier: int, world_position: Vector3, surface: int)
+## VehicleDamageState changed (HEALTHY / DAMAGED / DISABLED).
+signal vehicle_damage_changed(state: int)
+## WorldRecoveryManager placed the tuk back on the road. `reason` e.g. "disabled", "void".
+signal vehicle_recovered(reason: String)
+## An ImpactProp was knocked (light street clutter).
+signal prop_knocked(world_position: Vector3, kind: int)

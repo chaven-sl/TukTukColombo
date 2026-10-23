@@ -348,3 +348,23 @@ msgstr ""
 
 msgid "REACT_INCIDENT_THRILL"
 msgstr ""
+
+# --- v0.03A2 crash consequences and notifications ---
+
+msgid "UI_TUK_DAMAGED"
+msgstr ""
+
+msgid "UI_TUK_DISABLED"
+msgstr ""
+
+msgid "UI_RESETTING_TO_ROAD"
+msgstr ""
+
+msgid "UI_NOTIFY_ON_BOARD"
+msgstr ""
+
+msgid "UI_NOTIFY_MAJOR_INCIDENT"
+msgstr ""
+
+msgid "FAIL_VEHICLE_DISABLED"
+msgstr ""
