@@ -126,8 +126,10 @@ func _settings(size: int, color: Color) -> LabelSettings:
 func _panel(parent: Control) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.07, 0.72)
-	style.set_corner_radius_all(6)
+	style.bg_color = Color(0.06, 0.07, 0.08, 0.72)
+	style.set_corner_radius_all(10)
+	style.border_width_bottom = 2
+	style.border_color = Color(0.1, 0.62, 0.62, 0.9)  # v0.03B teal accent
 	style.set_content_margin_all(12)
 	panel.add_theme_stylebox_override("panel", style)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -143,20 +145,40 @@ func _label(parent: Control, size: int) -> Label:
 	return label
 
 
+## v0.03B: a soft translucent light pillar + ground ring instead of a box —
+## readable from the chase camera without looking like debug geometry.
 func _beacon(color: Color, width: float) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(width, 7.0, width)
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = width * 0.9
+	mesh.bottom_radius = width * 1.6
+	mesh.height = 7.0
+	mesh.radial_segments = 12
+	mesh.rings = 1
+	mesh.cap_top = false
+	mesh.cap_bottom = false
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 1.2
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(color.r, color.g, color.b, 0.55)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.visible = false
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.75
+	torus.outer_radius = 0.95
+	torus.rings = 24
+	torus.ring_segments = 4
+	ring.mesh = torus
+	ring.material_override = mat
+	ring.position = Vector3(0, -3.45, 0)
+	ring.scale = Vector3(1.0, 0.15, 1.0)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.add_child(ring)
 	world.add_child(mi)
 	return mi
 

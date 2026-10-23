@@ -44,8 +44,10 @@ func _ready() -> void:
 	for i in SLOTS:
 		var panel := PanelContainer.new()
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.05, 0.05, 0.07, 0.8)
-		style.set_corner_radius_all(6)
+		style.bg_color = Color(0.06, 0.07, 0.08, 0.8)
+		style.set_corner_radius_all(10)
+		style.border_width_bottom = 2
+		style.border_color = Color(0.1, 0.62, 0.62, 0.9)  # v0.03B teal accent
 		style.set_content_margin_all(10)
 		panel.add_theme_stylebox_override("panel", style)
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE

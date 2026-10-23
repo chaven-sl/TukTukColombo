@@ -26,4 +26,4 @@ extends Resource
 @export_group("Ribbon")
 @export var ribbon_width := 1.2
 @export var ribbon_height := 0.07
-@export var ribbon_color := Color(0.15, 0.85, 1.0)
+@export var ribbon_color := Color(0.2, 0.82, 0.95)
