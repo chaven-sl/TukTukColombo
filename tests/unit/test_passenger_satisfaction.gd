@@ -182,6 +182,9 @@ func test_telemetry_aggregation() -> void:
 
 
 func test_fare_calculation() -> void:
+	# The formula with the class defaults (Rs 100 + Rs 90/km); the shipped
+	# ride_config.tres scales the values for the v0.04 economy.
+	var _config := RideConfig.new()
 	var base := RideResult.calculate_base_fare(500.0, _config)
 	check_eq(base, 150, "Rs 100 pickup + Rs 90/km × 0.5 km = 145 → rounds to 150")
 	check_eq(RideResult.calculate_adjustment(base, 87.0, _config), 20, "87% → +13.5% → +Rs 20")

@@ -35,6 +35,10 @@ func _ready() -> void:
 	player.get_node("PlayerInput").set("enabled", false)
 	(main.get_node("TouchInput") as TouchInputSource).enabled = false
 	await _frames(30)
+	if "--economy" in OS.get_cmdline_user_args():
+		await _economy_shots()
+		get_tree().quit()
+		return
 	if "--gates" in OS.get_cmdline_user_args():
 		await _gates()
 		get_tree().quit()
@@ -308,3 +312,36 @@ func _nearest_lane_ahead() -> Lane:
 			bd = d
 			best = l
 	return best
+
+
+## v0.04: hire card with job tier + estimate, and the explained result card.
+## Run on a throwaway slot: -- --economy --save-slot=screens
+func _economy_shots() -> void:
+	var offer: PassengerOffer = null
+	for o in offers.offers:
+		if o.state == PassengerOffer.State.AVAILABLE and o.passenger != null and (offer == null or o.tier > offer.tier):
+			offer = o
+	if offer == null:
+		print("[Screens] no offer")
+		return
+	var out := humans.network.node_out[offer.pickup.node_id]
+	player.teleport(Transform3D(MathUtil.basis_from_forward(out.cross(Vector3.UP)), offer.pickup.global_position - out * 4.0 + Vector3.UP * 0.3))
+	player.input.handbrake = true
+	player.input.brake = 1.0
+	await _frames(40)
+	await _shot("v004_hire_card")
+	var t := 0
+	while t < 900 and rides.state != RideManager.RideState.ACTIVE:
+		if rides.nearby_offer == offer and rides.state == RideManager.RideState.NO_RIDE:
+			rides.request_accept()
+		await _frames(1)
+		t += 1
+	await _frames(200)
+	var dout := humans.network.node_out[offer.destination.node_id]
+	player.teleport(Transform3D(MathUtil.basis_from_forward(dout.cross(Vector3.UP)), offer.destination.global_position - dout * 4.0 + Vector3.UP * 0.3))
+	t = 0
+	while t < 900 and rides.state == RideManager.RideState.ACTIVE:
+		await _frames(1)
+		t += 1
+	await _frames(30)
+	await _shot("v004_ride_result")

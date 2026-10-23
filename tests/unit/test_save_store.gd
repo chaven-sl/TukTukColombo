@@ -130,7 +130,7 @@ func test_v1_save_migrates_to_v2_preserving_data() -> void:
 	}
 	_write(store.primary_path(), JSON.stringify(v1))
 	check_eq(store.load_document(), SaveStore.LoadResult.LOADED_PRIMARY, "v1 file accepted")
-	check_eq(store.data["schema_version"], 2, "upgraded to schema 2")
+	check_eq(store.data["schema_version"], SaveStore.CURRENT_SCHEMA_VERSION, "upgraded to the current schema")
 	var stats: Dictionary = store.data["prototype_stats"]
 	check_eq(stats["best_combo"], 6, "best_combo preserved")
 	check_eq(stats["highest_score"], 4321, "highest_score preserved")
@@ -158,3 +158,66 @@ func test_nested_counters_normalise_to_int() -> void:
 	check_eq(per_type["careful"], 0, "invalid value falls back to default")
 	check_eq(per_type.get("vip", -1), 2, "future passenger ids kept")
 
+
+
+# --- v0.04 career (schema v3) ---
+
+func test_clean_new_save_has_career_defaults() -> void:
+	var store := _fresh_store("career_new")
+	store.load_document()
+	var c: Dictionary = store.data["career"]
+	check_eq(c["cash"], 1500, "starting cash Rs. 1,500")
+	check_eq(c["reputation"], 0, "starting reputation 0")
+	check_eq((c["upgrades"] as Dictionary).size(), 4, "four upgrade categories")
+	for id in ["engine", "brakes", "handling", "suspension"]:
+		check_eq(c["upgrades"][id], 0, "%s starts at level 0" % id)
+
+
+func test_v2_save_migrates_to_v3_keeping_stats() -> void:
+	var store := _fresh_store("v2_to_v3")
+	_write(store.primary_path(), JSON.stringify({"schema_version": 2, "settings": {"locale": "si"},
+			"prototype_stats": {"best_combo": 9, "rides_completed": 14, "prototype_fares_total": 2100}}))
+	check_eq(store.load_document(), SaveStore.LoadResult.LOADED_PRIMARY, "v2 primary loads")
+	check_eq(store.data["schema_version"], 3, "migrated to v3")
+	check_eq(store.data["prototype_stats"]["rides_completed"], 14, "v2 ride stats kept")
+	check_eq(store.data["settings"]["locale"], "si", "settings kept")
+	check_eq(store.data["career"]["cash"], 1500, "career added with starting cash")
+	check_eq(store.data["career"]["upgrades"]["engine"], 0, "upgrades start at 0")
+
+
+func test_career_cash_reputation_upgrades_persist() -> void:
+	var store := _fresh_store("career_persist")
+	store.load_document()
+	store.data["career"]["cash"] = 4321
+	store.data["career"]["reputation"] = 77
+	store.data["career"]["upgrades"]["brakes"] = 3
+	check(store.save_document(), "saved")
+	var again := SaveStore.new(DIR, "career_persist")
+	again.load_document()
+	check_eq(again.data["career"]["cash"], 4321, "cash persisted")
+	check_eq(again.data["career"]["reputation"], 77, "reputation persisted")
+	check_eq(again.data["career"]["upgrades"]["brakes"], 3, "upgrade level persisted")
+
+
+func test_corrupt_primary_recovers_career_from_backup() -> void:
+	var store := _fresh_store("career_backup")
+	store.load_document()
+	store.data["career"]["cash"] = 2600
+	store.save_document()
+	store.data["career"]["cash"] = 9999
+	store.save_document()
+	_write(store.primary_path(), "{ broken")
+	var again := SaveStore.new(DIR, "career_backup")
+	check_eq(again.load_document(), SaveStore.LoadResult.RECOVERED_BACKUP, "falls back to the backup")
+	check_eq(again.data["career"]["cash"], 2600, "career cash from the backup")
+
+
+func test_tampered_career_values_are_clamped() -> void:
+	var store := _fresh_store("career_clamp")
+	_write(store.primary_path(), JSON.stringify({"schema_version": 3, "career": {"cash": -500, "reputation": -3,
+			"upgrades": {"engine": 9, "brakes": -2}}}))
+	store.load_document()
+	check_eq(store.data["career"]["cash"], 0, "negative cash clamped to 0")
+	check_eq(store.data["career"]["reputation"], 0, "negative reputation clamped")
+	check_eq(store.data["career"]["upgrades"]["engine"], 5, "level clamped to max 5")
+	check_eq(store.data["career"]["upgrades"]["brakes"], 0, "level clamped to 0")

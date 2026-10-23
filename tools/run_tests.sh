@@ -52,6 +52,9 @@ run "World containment + crash damage + recovery + props" --fixed-fps 60 res://t
 run "Pavement safety: pedestrian emergency evasion" --fixed-fps 60 res://tests/scenarios/pavement_safety_test.tscn
 run "Fort–Pettah slice: art / presentation / audio (v0.03B)" --fixed-fps 60 res://tests/scenarios/fort_pettah_test.tscn
 run "Pettah compression: narrowed market road, routing, traffic (v0.03B1.1)" --fixed-fps 60 res://tests/scenarios/market_compression_test.tscn
+run "Economy simulation: 500 rides x 4 player skills, pacing targets (v0.04)" --script res://tests/sim/economy_sim.gd
+run "Career flow: garage → drive → hires → garage → upgrade → drive → reopen (v0.04)" --fixed-fps 60 res://tests/scenarios/career_flow_test.tscn
+run "Upgrades on the real tuk: feel, bounds, still a tuk (v0.04)" --fixed-fps 60 res://tests/scenarios/upgrade_dynamics_test.tscn
 run "Mobile touch (forced touch controls)" --fixed-fps 60 res://tests/scenarios/mobile_touch_test.tscn -- --force-touch-controls
 run "Traffic + humans soak (6 min, driving)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360
 run "Traffic + humans + incidents soak (4 min, scripted collisions)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=240 --incidents

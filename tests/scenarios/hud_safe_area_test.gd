@@ -141,9 +141,9 @@ func _run() -> void:
 					_check("%s: %s vs %s no overlap" % [tag, keys[a], keys[b]], not ra.intersects(rb), "%s / %s" % [ra, rb])
 			# Result card (after a ride) shown with the banners.
 			var result: Control = ride_hud.get("_result_panel")
-			(ride_hud.get("_result_label") as Label).text = "\n".join(PackedStringArray([tr("UI_RIDE_FAILED"), tr("FAIL_VEHICLE_DISABLED"), "",
-					"%s %s" % [tr("UI_PASSENGER"), LONG_NAME], "%s 1.2 km" % tr("UI_DISTANCE"), "%s 4:56" % tr("UI_RIDE_TIME"),
-					"%s 23 km/h" % tr("UI_AVERAGE_SPEED"), "%s %s" % [tr("UI_DRIVING_STYLE"), tr("STYLE_SMOOTH")], "%s 12%%" % tr("UI_PASSENGER_RATING")]))
+			# v0.04 worst case: every payout line on a PREMIUM ride.
+			ride_hud.call("_show_result", _worst_case_result())
+			await _frames(2)
 			result.visible = true
 			await _frames(3)
 			var rr := result.get_global_rect()
@@ -165,3 +165,19 @@ func _run() -> void:
 	print("")
 	print("=== HUD SAFE AREA: %s — %d checks, %d failures ===" % ["PASS" if _failures == 0 else "FAIL", _checks, _failures])
 	get_tree().quit(0 if _failures == 0 else 1)
+
+
+func _worst_case_result() -> RideResult:
+	var r := RideResult.new()
+	r.outcome = RideResult.Outcome.COMPLETED
+	r.profile = load("res://resources/passengers/rushed.tres")
+	r.telemetry = RideTelemetry.new()
+	r.satisfaction = PassengerSatisfaction.new()
+	r.satisfaction.final_score = 88.0
+	r.style_key = "STYLE_SMOOTH"
+	r.job_tier = JobTiers.Tier.PREMIUM
+	r.payout_lines = [["PAY_BASE_FARE", 1640], ["PAY_PASSENGER_RATING", 210], ["PAY_CLEAN_RIDE", 140], ["PAY_SMOOTH_STOP", 70],
+			["PAY_FAST_FARE", 110], ["PAY_SKILL", 280], ["PAY_COLLISIONS", -140], ["PAY_MAJOR_COLLISIONS", -280], ["PAY_JOB_BONUS", 1230]]
+	r.cash_earned = 3260
+	r.reputation_earned = 12
+	return r
