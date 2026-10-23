@@ -2,7 +2,7 @@
 
 ## STATUS
 
-**{{STATUS}}.**
+**PASS.**
 
 The Pettah market core is now **one 2.85 m lane each way**, between deep, dense shop fronts:
 - the lane reduction happens at a new signalised **Market Gate** junction;
@@ -14,7 +14,7 @@ Results:
 - **Tests:** all 19 stages pass (the 18 existing + the new market stage).
 - **Soak:** the 6-minute Fort–Pettah soak passes.
 - **Gate B:** re-shot on the narrow road.
-- **Android:** {{ANDROID_STATUS}}
+- **Android:** Android holds the approved v0.03B1 performance: 58.3 FPS average, 57.9 p5.
 
 All locked systems are untouched:
 - hero tuk, station, traffic and character art;
@@ -153,7 +153,27 @@ All kerbside obstacles are deliberate and traffic-aware:
 
 ## ANDROID PERFORMANCE
 
-{{ANDROID}}
+Reference phone (A142, Mali-G610 MC4), medium tier at 0.67 + FSR (unchanged), deterministic autopilot, 180 s, phone unlocked:
+
+| Metric | v0.03B1 (approved) | **v0.03B1.1** | Target |
+|---|---|---|---|
+| FPS avg | 58.7 | **58.3** | ≥ 55 |
+| FPS p5 | 58.4 | **57.9** | ≥ 48 |
+| Slowest 1 s | 51.0 | **51.9** | — |
+| Seconds below 50 FPS | 0 | **0** | — |
+| Frame time mean / p95 | 17.04 / 17.13 ms | 17.14 / 17.29 ms | — |
+| GPU mean / p95 | 12.53 / 14.15 ms | 12.68 / 14.20 ms | — |
+| Render CPU | 1.60 ms | 1.75 ms | — |
+| Game scripts per frame | 2.77 ms | 2.79 ms | — |
+| Draw calls | 112 | 138 | < 280 |
+| Static memory | 138.4 MB | 140.0 MB | < 220 MB |
+
+**Why draw calls rose (+26):**
+- the second signalised junction;
+- the Spice Lane portal and street;
+- denser market chunks.
+
+There is still a large margin against the 280 limit. No render-scale or lighting changes were made.
 
 ## SCREENSHOT
 
