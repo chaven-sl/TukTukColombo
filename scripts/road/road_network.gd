@@ -219,6 +219,16 @@ func route(from_pos: Vector3, to_pos: Vector3, from_heading: Vector3 = Vector3.Z
 	return {"distance": d, "restricted": restricted, "start_dir": start_dir}
 
 
+## Adds a lateral-offset cost so equal-length parallel lanes resolve to the
+## one nearest `pos` (the tuk's own lane / the kerb lane), not an arbitrary one.
+func _with_offset_cost(candidates: Array, pos: Vector3) -> Array:
+	var out: Array = []
+	for c in candidates:
+		var p := (c[0] as Lane).sample_position(float(c[1]))
+		out.append([c[0], c[1], Vector2(p.x - pos.x, p.z - pos.z).length() * 4.0])
+	return out
+
+
 func _directed(candidates: Array, pos: Vector3, heading: Vector3) -> Array:
 	if candidates.is_empty():
 		return candidates
@@ -240,23 +250,46 @@ func _directed(candidates: Array, pos: Vector3, heading: Vector3) -> Array:
 	return out
 
 
-func _shortest(starts: Array, ends: Array, from_pos: Vector3, to_pos: Vector3) -> float:
+func _shortest(starts: Array, ends: Array, _from_pos: Vector3, _to_pos: Vector3) -> float:
+	return float(_search(starts, ends)["distance"])
+
+
+## Dijkstra over lanes (v0.02 semantics, now with path reconstruction).
+## dist[lane] = route distance from the start point to that lane's start.
+## Start lanes are not seeded themselves — their successors are, with the
+## remaining length — so a route may legally loop back over its own start
+## lane (a lap) instead of being forced into a U-turn. prev[lane] is the
+## previous Lane, or [start_lane, s0] for the first lane after a start.
+## A same-lane route ahead of the start is recorded as "direct".
+## Optional third entry per start/end = extra cost (GPS uses it to prefer the
+## lane the tuk is actually in and the kerb lane at the destination).
+func _search(starts: Array, ends: Array) -> Dictionary:
+	var result := {"distance": INF, "end_lane": null, "end_s": 0.0, "prev": {}, "direct": []}
 	if starts.is_empty() or ends.is_empty():
-		return INF
+		return result
 	var end_s: Dictionary = {}
+	var end_cost: Dictionary = {}
 	for e in ends:
 		end_s[e[0]] = float(e[1])
+		end_cost[e[0]] = float(e[2]) if e.size() > 2 else 0.0
 	var best := INF
+	var best_lane: Lane = null
+	var direct: Array = []
 	var dist: Dictionary = {}
+	var prev: Dictionary = {}
 	for st in starts:
 		var lane: Lane = st[0]
 		var s0: float = st[1]
-		if end_s.has(lane) and float(end_s[lane]) >= s0:
-			best = minf(best, float(end_s[lane]) - s0)
+		var c0 := float(st[2]) if st.size() > 2 else 0.0
+		if end_s.has(lane) and float(end_s[lane]) >= s0 and float(end_s[lane]) - s0 + c0 + float(end_cost[lane]) < best:
+			best = float(end_s[lane]) - s0 + c0 + float(end_cost[lane])
+			best_lane = lane
+			direct = [lane, s0]
 		for succ in lane.successors:
-			var d := lane.length - s0
+			var d := lane.length - s0 + c0
 			if d < float(dist.get(succ, INF)):
 				dist[succ] = d
+				prev[succ] = [lane, s0]
 	var visited: Dictionary = {}
 	while true:
 		var cur: Lane = null
@@ -271,13 +304,69 @@ func _shortest(starts: Array, ends: Array, from_pos: Vector3, to_pos: Vector3) -
 		if cur == null or cur_d >= best:
 			break
 		visited[cur] = true
-		if end_s.has(cur):
-			best = minf(best, cur_d + float(end_s[cur]))
+		if end_s.has(cur) and cur_d + float(end_s[cur]) + float(end_cost[cur]) < best:
+			best = cur_d + float(end_s[cur]) + float(end_cost[cur])
+			best_lane = cur
+			direct = []
 		for succ in cur.successors:
 			var nd := cur_d + cur.length
 			if nd < float(dist.get(succ, INF)):
 				dist[succ] = nd
-	return best
+				prev[succ] = cur
+	result["distance"] = best
+	result["end_lane"] = best_lane
+	result["end_s"] = float(end_s.get(best_lane, 0.0)) if best_lane != null else 0.0
+	result["prev"] = prev
+	result["direct"] = direct
+	return result
+
+
+## v0.03A1 GPS: the same direction-aware search as route(), plus the actual
+## road geometry of the chosen route. Returns a RoutePlan (empty points when
+## no route exists). Called on accept / boarding / off-route only — never
+## every frame.
+func route_path(from_pos: Vector3, to_pos: Vector3, from_heading: Vector3 = Vector3.ZERO, radius: float = 14.0) -> RoutePlan:
+	var all_starts := _lanes_near(from_pos, radius)
+	var all_ends := _lanes_near(to_pos, radius)
+	var starts := _with_offset_cost(_directed(all_starts, from_pos, from_heading), from_pos)
+	var ends := _with_offset_cost(_directed(all_ends, to_pos, Vector3.ZERO), to_pos)
+	var res := _search(starts, ends)
+	var plan := RoutePlan.new()
+	plan.restricted = true
+	if res["end_lane"] == null:
+		res = _search(all_starts, all_ends)
+		plan.restricted = false
+	if res["end_lane"] == null:
+		return plan
+	# Rebuild [lane, from_s, to_s] spans back from the end lane.
+	var spans: Array = []
+	var se := float(res["end_s"])
+	var direct: Array = res["direct"]
+	if not direct.is_empty():
+		spans.append([direct[0], float(direct[1]), se])
+	else:
+		var prev: Dictionary = res["prev"]
+		var lane: Lane = res["end_lane"]
+		var to_s := se
+		var guard := 0
+		while guard < 512:
+			guard += 1
+			spans.push_front([lane, 0.0, to_s])
+			var p: Variant = prev.get(lane, null)
+			if p is Array:
+				spans.push_front([p[0], float(p[1]), (p[0] as Lane).length])
+				break
+			if p == null:
+				break
+			lane = p
+			to_s = lane.length
+	for i in spans.size():
+		var l: Lane = spans[i][0]
+		if l.is_connector and plan.points.size() > 0:
+			plan.add_turn(plan.length(), l.start_tangent(), l.end_tangent())
+		plan.append_lane_span(l, float(spans[i][1]), float(spans[i][2]))
+	plan.target = to_pos
+	return plan
 
 
 func _lanes_near(pos: Vector3, radius: float) -> Array:
