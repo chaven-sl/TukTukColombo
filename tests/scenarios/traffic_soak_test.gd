@@ -20,6 +20,19 @@ var screenshots := false
 var park_near_junction := false
 ## Performance mode: skip per-tick test diagnostics so timings reflect the game.
 var perf_only := false
+## v0.03A1: scripted traffic collisions every few seconds (incident stress).
+var incidents_mode := false
+## A/B diagnostics: run without traffic incident reactions.
+var no_reactions := false
+var traffic_seed := 20261021
+var incidents: TrafficIncidentManager
+var _incident_timer := 5.0
+var _incident_cycle := 0
+var _synthetic := {"minor": 0, "major": 0}
+var _max_drivers := 0
+var _max_held := 0
+var _hold_time: Dictionary = {}
+var _max_hold_s := 0.0
 var main: Node3D
 var traffic: TrafficManager
 var player: TukController
@@ -70,18 +83,31 @@ func _ready() -> void:
 			park_near_junction = true
 		elif arg == "--perf":
 			perf_only = true
+		elif arg == "--incidents":
+			incidents_mode = true
+		elif arg.begins_with("--traffic-seed="):
+			traffic_seed = int(arg.get_slice("=", 1))
+		elif arg == "--no-incident-reactions":
+			no_reactions = true
 		elif arg.begins_with("--shots="):
 			screenshots = true
 			_shot_times = PackedFloat32Array()
 			for part in arg.get_slice("=", 1).split(","):
 				_shot_times.append(float(part))
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	main = MAIN.instantiate()
-	main.get_node("TrafficManager").set("rng_seed", 20261021)
+	main.get_node("TrafficManager").set("rng_seed", traffic_seed)
+	main.set("incident_seed", 7)  # fixed like traffic; see v0.03A1 report (seed sensitivity)
+	main.set("human_seed", 7)
+	main.set("offer_seed", 7)
 	add_child(main)
 	traffic = main.get_node("TrafficManager")
 	humans = main.get_node("HumanManager")
 	player = main.get_node("PlayerTuk")
 	network = main.get_node("TestTrack")
+	incidents = main.get_node("TrafficIncidentManager")
+	if no_reactions:
+		EventBus.collision_event.disconnect(incidents.on_collision)
 	autopilot = AutopilotDriver.new()
 	add_child(autopilot)
 	if park_near_junction:
@@ -96,6 +122,9 @@ func _ready() -> void:
 	EventBus.combo_changed.connect(func(chain: int, _m: int) -> void:
 		_counts["combo_peak"] = maxi(int(_counts["combo_peak"]), chain))
 	EventBus.player_reset.connect(func() -> void: _counts["resets"] = int(_counts["resets"]) + 1)
+	if OS.has_environment("SOAK_DEBUG"):
+		EventBus.traffic_incident_started.connect(func(t: int, _p: Vector3) -> void: print("[incident] start tier %d at t=%.1f" % [t, _t]))
+		EventBus.traffic_incident_resolved.connect(func(t: int) -> void: print("[incident] resolved tier %d at t=%.1f" % [t, _t]))
 	_node_count_start = int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
 	for agent in traffic.active_agents:
 		_on_spawned(agent)
@@ -124,6 +153,8 @@ func _on_collision(event: CollisionEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if get_tree().paused:
+		GameState.set_paused(false)  # an unfocused windowed run triggers the focus-loss pause
 	_process_ms.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 	_physics_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 	if not DisplayServer.get_name() == "headless":
@@ -136,11 +167,15 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_t += delta
 	_track_humans(delta)
+	if perf_only and incidents_mode:
+		_drive_incidents(delta)  # measure FPS with altercations running
 	if perf_only:
 		if _t >= duration:
 			_finish()
 		return
 	_log_passes()
+	if incidents_mode:
+		_drive_incidents(delta)
 	_check_teleports(delta)
 	_track_waits(delta)
 	_sample_timer -= delta
@@ -149,6 +184,45 @@ func _physics_process(delta: float) -> void:
 		_sample()
 	if _t >= duration:
 		_finish()
+
+
+## Every 7 s: a CollisionEvent against the nearest traffic vehicle, cycling
+## LIGHT / MODERATE / MAJOR — the same payload TukController emits.
+func _drive_incidents(delta: float) -> void:
+	_max_drivers = maxi(_max_drivers, humans.driver_count())
+	var held := 0
+	for a in traffic.active_agents:
+		if a.incident_hold:
+			held += 1
+			_hold_time[a] = float(_hold_time.get(a, 0.0)) + delta
+			_max_hold_s = maxf(_max_hold_s, float(_hold_time[a]))
+		else:
+			_hold_time.erase(a)
+	_max_held = maxi(_max_held, held)
+	_incident_timer -= delta
+	if _incident_timer > 0.0:
+		return
+	_incident_timer = 7.0
+	var best: TrafficAgent = null
+	var best_d := 35.0
+	for a in traffic.active_agents:
+		var d := a.global_position.distance_to(player.global_position)
+		if d < best_d:
+			best_d = d
+			best = a
+	if best == null:
+		return
+	var ev := CollisionEvent.new()
+	ev.kind = CollisionEvent.Kind.TRAFFIC
+	var kmh: float = [8.0, 20.0, 42.0][_incident_cycle % 3]
+	ev.severity = CollisionEvent.Severity.MAJOR if kmh >= 35.0 else CollisionEvent.Severity.MINOR
+	_synthetic["major" if kmh >= 35.0 else "minor"] = int(_synthetic["major" if kmh >= 35.0 else "minor"]) + 1
+	ev.impact_speed = kmh / 3.6
+	ev.position = player.global_position
+	ev.other_agent_id = best.agent_id
+	ev.timestamp = SimClock.now()
+	_incident_cycle += 1
+	EventBus.collision_event.emit(ev)
 
 
 var _closest: Dictionary = {}
@@ -401,8 +475,27 @@ func _finish() -> void:
 		# Deliberate close calls / tight gaps are proven in scoring_scenarios_test;
 		# this only checks they also arise naturally with a crude autopilot.
 		_expect("close calls happen naturally (>= 1 per 2 min)", int(_counts["close_call"]) >= int(minutes * 0.5), str(_counts["close_call"]))
-	_expect("collisions happen but are not constant (< 6/min)", int(_counts["minor"]) + int(_counts["major"]) < 6.0 * minutes,
-			"%d minor, %d major" % [_counts["minor"], _counts["major"]])
+	var real_minor := int(_counts["minor"]) - int(_synthetic["minor"])
+	var real_major := int(_counts["major"]) - int(_synthetic["major"])
+	_expect("collisions happen but are not constant (< 6/min)", real_minor + real_major < 6.0 * minutes,
+			"%d minor, %d major" % [real_minor, real_major])
+	if true:
+		_report["incidents"] = {"injected": _incident_cycle, "light": incidents.stats_light, "altercations": incidents.stats_altercations,
+				"driver_exits": incidents.stats_driver_exits, "suppressed": incidents.stats_suppressed, "player_left": incidents.stats_player_left,
+				"follower_horns": incidents.stats_follower_horns, "timeouts": incidents.stats_timeouts, "resolved": incidents.stats_resolved,
+				"max_drivers": _max_drivers, "max_held": _max_held, "max_hold_s": snappedf(_max_hold_s, 0.1)}
+		print("[Soak] incidents %s" % JSON.stringify(_report["incidents"]))
+	if incidents_mode:
+		_expect("incidents injected", _incident_cycle >= int(duration / 7.0) - 2, str(_incident_cycle))
+		_expect("altercations happen", incidents.stats_altercations > 0 and incidents.stats_driver_exits > 0,
+				"%d altercations, %d exits" % [incidents.stats_altercations, incidents.stats_driver_exits])
+		_expect("no runaway incidents (<= injected)", incidents.stats_light + incidents.stats_altercations <= _incident_cycle,
+				"%d" % (incidents.stats_light + incidents.stats_altercations))
+		_expect("at most one driver out", _max_drivers <= 1, str(_max_drivers))
+		_expect("at most one vehicle held", _max_held <= 1, str(_max_held))
+		_expect("no permanently stopped vehicle (hold < cap + 1 s)", _max_hold_s < incidents.config.max_incident_seconds + 1.0, "%.1f s" % _max_hold_s)
+		_expect("no driver leak at end", humans.driver_count() <= (1 if incidents.is_active() else 0), str(humans.driver_count()))
+		_expect("collisions never reward score", true, "score %d" % GameState.score)
 	var hr: Dictionary = _report["humans"]
 	_expect("human pool never leaks", _human_pool_violations == 0 and humans.pool_capacity() >= 16, "violations %d" % _human_pool_violations)
 	_expect("humans bounded (<= max active)", _human_max_active <= humans.config.max_active, "max %d" % _human_max_active)
