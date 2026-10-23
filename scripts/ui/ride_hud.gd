@@ -27,6 +27,9 @@ var _offer_dist: Label
 var _offer_chip: PanelContainer
 var _offer_chip_label: Label
 var _offer_hint: Label
+## v0.04 job tier chip (EXPRESS / PREMIUM) on the hire card.
+var _offer_tier_chip: PanelContainer
+var _offer_tier_label: Label
 var _ride_panel: PanelContainer
 ## Ride card: passenger, → destination, remaining + mood chip, small timer.
 var _ride_label: Label
@@ -48,6 +51,8 @@ var _dest_beacon: MeshInstance3D
 var _gps_panel: PanelContainer
 var _gps_label: Label
 var _pickup_tag: Label3D
+var _result_grid: GridContainer
+var _result_footer: Label
 var _text_timer := 0.0
 
 
@@ -94,6 +99,8 @@ func _ready() -> void:
 	_offer_dist.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_offer_chip = _chip(orow)
 	_offer_chip_label = _offer_chip.get_child(0) as Label
+	_offer_tier_chip = _chip(orow)
+	_offer_tier_label = _offer_tier_chip.get_child(0) as Label
 	_offer_hint = _label(ov, 13)
 	_offer_hint.add_theme_color_override("font_color", Color(0.7, 0.72, 0.74))
 	_gps_panel = _panel(root)
@@ -115,8 +122,17 @@ func _ready() -> void:
 	_ride_time = _label(rv, 12)
 	_ride_time.add_theme_color_override("font_color", Color(0.65, 0.67, 0.7))
 	_result_panel = _panel(root)
-	_result_label = _label(_result_panel, 22)
-	_result_label.max_lines_visible = 16
+	var res_box := _vbox(_result_panel)
+	_result_label = _label(res_box, 18)
+	_result_label.max_lines_visible = 4
+	# v0.04 payout breakdown: label | amount, amounts right-aligned.
+	_result_grid = GridContainer.new()
+	_result_grid.columns = 2
+	_result_grid.add_theme_constant_override("h_separation", 12)
+	_result_grid.add_theme_constant_override("v_separation", 0)
+	res_box.add_child(_result_grid)
+	_result_footer = _label(res_box, 15)
+	_result_footer.add_theme_color_override("font_color", Color(1.0, 0.86, 0.4))
 	_offer_label.max_lines_visible = 2  # compact card: long names wrap to 2 lines, never reach the speed readout
 	_offer_route.max_lines_visible = 2
 	_offer_hint.max_lines_visible = 1
@@ -217,6 +233,20 @@ func _set_chip(chip: PanelContainer, label: Label, text: String, color: Color) -
 	label.text = text
 	(chip.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = color
 	chip.visible = not text.is_empty()
+
+
+const TIER_COLORS := [Color(0.3, 0.35, 0.4), Color(0.85, 0.4, 0.1), Color(0.55, 0.42, 0.12)]
+
+
+## Typical payout for this hire (base fare × job tier × career bonus): an
+## honest "about" figure — the result card explains the real one.
+func _estimate(offer: PassengerOffer) -> int:
+	var base := RideResult.calculate_base_fare(offer.route_m, rides.config)
+	var econ := rides.economy
+	if econ == null:
+		return base
+	var mult := JobTiers.cash_multiplier(offer.tier, econ) * (1.0 + econ.career_fare_bonus_per_level * (rides.career_level - 1))
+	return roundi((base + econ.clean_ride_bonus) * mult / 10.0) * 10
 
 
 const PRIORITY_COLORS := {"PRIORITY_SAFE": Color(0.18, 0.55, 0.32), "PRIORITY_FAST": Color(0.8, 0.45, 0.1), "PRIORITY_EXCITING": Color(0.7, 0.2, 0.55)}
@@ -362,8 +392,10 @@ func _update_offer_panel() -> void:
 				show = true
 				_offer_label.text = tr(offer.profile.display_name_key).to_upper()
 				_offer_route.text = "%s → %s" % [tr(offer.pickup.display_name_key), tr(offer.destination.display_name_key)]
-				_offer_dist.text = km(offer.route_m)
+				_offer_dist.text = "%s · ≈ %s" % [km(offer.route_m), EconomyFormat.rupees(_estimate(offer))]
 				_set_chip(_offer_chip, _offer_chip_label, tr(offer.profile.priority_key), PRIORITY_COLORS.get(offer.profile.priority_key, Color(0.3, 0.35, 0.4)))
+				_set_chip(_offer_tier_chip, _offer_tier_label, tr(JobTiers.KEYS[offer.tier]) if offer.tier != JobTiers.Tier.STANDARD else "",
+						TIER_COLORS[offer.tier])
 				_offer_dist.get_parent().visible = true
 				if not touch_mode:
 					_offer_hint.visible = true
@@ -410,31 +442,55 @@ func _on_reaction(key: String) -> void:
 
 
 func _on_result(result: RideResult) -> void:
-	var t := result.telemetry
-	var lines := PackedStringArray()
+	# Built after GameState has credited the career (same frame, deferred),
+	# so the card shows the new reputation / level.
+	_show_result.call_deferred(result)
+
+
+func _show_result(result: RideResult) -> void:
+	var head := PackedStringArray()
 	if result.outcome == RideResult.Outcome.COMPLETED:
-		lines.append(tr("UI_RIDE_COMPLETE"))
+		head.append(tr("UI_RIDE_COMPLETE"))
 	else:
-		lines.append(tr("UI_RIDE_FAILED"))
 		match result.fail_reason:
 			RideResult.FailReason.PEDESTRIAN_IMPACT:
-				lines.append(tr("FAIL_PEDESTRIAN"))
+				head.append("%s — %s" % [tr("UI_RIDE_FAILED"), tr("FAIL_PEDESTRIAN")])
 			RideResult.FailReason.VEHICLE_DISABLED:
-				lines.append(tr("FAIL_VEHICLE_DISABLED"))
+				head.append("%s — %s" % [tr("UI_RIDE_FAILED"), tr("FAIL_VEHICLE_DISABLED")])
 			_:
-				lines.append(tr("FAIL_ROLLOVER"))
-	lines.append("")
-	lines.append("%-20s %s" % [tr("UI_PASSENGER"), tr(result.profile.display_name_key)])
-	lines.append("%-20s %s" % [tr("UI_DISTANCE"), km(t.distance_m)])
-	lines.append("%-20s %d:%02d" % [tr("UI_RIDE_TIME"), int(t.elapsed) / 60, int(t.elapsed) % 60])
-	lines.append("%-20s %d km/h" % [tr("UI_AVERAGE_SPEED"), roundi(t.average_speed_kmh())])
-	lines.append("%-20s %s" % [tr("UI_DRIVING_STYLE"), tr(result.style_key)])
-	lines.append("%-20s %d%%" % [tr("UI_PASSENGER_RATING"), roundi(result.satisfaction.final_score)])
-	if result.outcome == RideResult.Outcome.COMPLETED:
-		lines.append("")
-		lines.append("%-20s Rs. %d" % [tr("UI_BASE_FARE"), result.base_fare])
-		lines.append("%-20s %sRs. %d" % [tr("UI_ADJUSTMENT"), "+" if result.adjustment >= 0 else "−", absi(result.adjustment)])
-		lines.append("%-20s Rs. %d" % [tr("UI_FINAL_FARE"), result.final_fare])
-	_result_label.text = "\n".join(lines)
+				head.append("%s — %s" % [tr("UI_RIDE_FAILED"), tr("FAIL_ROLLOVER")])
+	var tier := "" if result.job_tier == JobTiers.Tier.STANDARD else " · " + tr(JobTiers.KEYS[result.job_tier])
+	head.append("%s · %d%% · %s%s" % [tr(result.profile.display_name_key), roundi(result.satisfaction.final_score), tr(result.style_key), tier])
+	_result_label.text = "\n".join(head)
+	# Every rupee explained, then the total and the reputation gained.
+	for c in _result_grid.get_children():
+		c.queue_free()
+	for l: Array in result.payout_lines:
+		var amount := int(l[1])
+		_grid_row(tr(l[0]), EconomyFormat.rupees(amount) if l[0] == "PAY_BASE_FARE" else EconomyFormat.signed_rupees(amount), 15,
+				Color(0.86, 0.88, 0.9) if amount >= 0 else Color(1.0, 0.55, 0.45))
+	_grid_row(tr("PAY_TOTAL"), EconomyFormat.rupees(result.cash_earned), 20, Color(1.0, 0.92, 0.55))
+	_grid_row(tr("UI_REPUTATION"), "+" + EconomyFormat.stars(result.reputation_earned), 17, Color(1.0, 0.8, 0.3))
+	_result_footer.text = ""
+	if GameState.career != null:
+		var c := GameState.career
+		var nlvl := c.next_level_reputation()
+		_result_footer.text = "%s  %s%s" % [tr(GameState.economy.career_name_keys[c.career_level() - 1]), EconomyFormat.stars(c.reputation()),
+				(" / %d" % nlvl) if nlvl > 0 else ""]
 	_result_panel.visible = true
 	_result_timer = rides.config.result_display_seconds
+
+
+func _grid_row(label: String, amount: String, size: int, color: Color) -> void:
+	var a := Label.new()
+	a.text = label
+	a.add_theme_font_size_override("font_size", size)
+	a.add_theme_color_override("font_color", color)
+	a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_result_grid.add_child(a)
+	var b := Label.new()
+	b.text = amount
+	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	b.add_theme_font_size_override("font_size", size)
+	b.add_theme_color_override("font_color", color)
+	_result_grid.add_child(b)

@@ -394,3 +394,173 @@ msgstr ""
 
 msgid "PLACE_COMMERCIAL_ROW"
 msgstr ""
+
+# v0.04 progression (garage, payouts, career) — needs Sinhala/Tamil translation; empty falls back to English
+
+msgid "CAREER_1"
+msgstr ""
+
+msgid "CAREER_2"
+msgstr ""
+
+msgid "CAREER_3"
+msgstr ""
+
+msgid "CAREER_4"
+msgstr ""
+
+msgid "CAREER_5"
+msgstr ""
+
+msgid "JOB_STANDARD"
+msgstr ""
+
+msgid "JOB_EXPRESS"
+msgstr ""
+
+msgid "JOB_PREMIUM"
+msgstr ""
+
+msgid "PAY_BASE_FARE"
+msgstr ""
+
+msgid "PAY_PASSENGER_RATING"
+msgstr ""
+
+msgid "PAY_CLEAN_RIDE"
+msgstr ""
+
+msgid "PAY_SMOOTH_STOP"
+msgstr ""
+
+msgid "PAY_FAST_FARE"
+msgstr ""
+
+msgid "PAY_SKILL"
+msgstr ""
+
+msgid "PAY_COLLISIONS"
+msgstr ""
+
+msgid "PAY_MAJOR_COLLISIONS"
+msgstr ""
+
+msgid "PAY_JOB_BONUS"
+msgstr ""
+
+msgid "PAY_TOTAL"
+msgstr ""
+
+msgid "UI_REPUTATION"
+msgstr ""
+
+msgid "UI_CAREER_LEVEL_UP"
+msgstr ""
+
+msgid "UI_RETURN_TO_GARAGE"
+msgstr ""
+
+msgid "UI_GARAGE_NOT_NOW"
+msgstr ""
+
+msgid "UI_DRIVE"
+msgstr ""
+
+msgid "UI_LEVEL"
+msgstr ""
+
+msgid "UI_LV"
+msgstr ""
+
+msgid "UI_MAX_LEVEL"
+msgstr ""
+
+msgid "UI_CURRENT"
+msgstr ""
+
+msgid "UI_NEXT_LEVEL"
+msgstr ""
+
+msgid "UI_IMPROVEMENT"
+msgstr ""
+
+msgid "UI_COST"
+msgstr ""
+
+msgid "UI_UPGRADE_FOR"
+msgstr ""
+
+msgid "UI_NEED_MORE"
+msgstr ""
+
+msgid "UI_SESSION_SUMMARY"
+msgstr ""
+
+msgid "UI_SESSION_CASH"
+msgstr ""
+
+msgid "UI_RIDES_COMPLETED"
+msgstr ""
+
+msgid "UI_REPUTATION_EARNED"
+msgstr ""
+
+msgid "UI_BEST_COMBO"
+msgstr ""
+
+msgid "UI_COLLISIONS"
+msgstr ""
+
+msgid "UI_PEDESTRIAN_INCIDENTS"
+msgstr ""
+
+msgid "UI_CONTINUE"
+msgstr ""
+
+msgid "UPGRADE_ENGINE"
+msgstr ""
+
+msgid "UPGRADE_ENGINE_DESC"
+msgstr ""
+
+msgid "UPGRADE_ENGINE_IMPROVE"
+msgstr ""
+
+msgid "UPGRADE_BRAKES"
+msgstr ""
+
+msgid "UPGRADE_BRAKES_DESC"
+msgstr ""
+
+msgid "UPGRADE_BRAKES_IMPROVE"
+msgstr ""
+
+msgid "UPGRADE_HANDLING"
+msgstr ""
+
+msgid "UPGRADE_HANDLING_DESC"
+msgstr ""
+
+msgid "UPGRADE_HANDLING_IMPROVE"
+msgstr ""
+
+msgid "UPGRADE_SUSPENSION"
+msgstr ""
+
+msgid "UPGRADE_SUSPENSION_DESC"
+msgstr ""
+
+msgid "UPGRADE_SUSPENSION_IMPROVE"
+msgstr ""
+
+msgid "STAT_SPEED"
+msgstr ""
+
+msgid "STAT_BRAKING"
+msgstr ""
+
+msgid "STAT_HANDLING"
+msgstr ""
+
+msgid "STAT_SUSPENSION"
+msgstr ""

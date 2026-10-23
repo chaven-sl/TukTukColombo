@@ -170,6 +170,17 @@ def main():
     write("driver_shout", voice(210, [(760, 160), (1300, 250), (2700, 350)], 0.9, 0.45, 7.0))
     write("passenger_react", voice(230, [(600, 120), (1100, 200)], 0.45, 0.25, 6.0))
     write("ui_click", norm(np.sin(2 * np.pi * 1800 * t(0.04)) * np.exp(-np.linspace(0, 10, int(0.04 * SR))), 0.5))
+    # --- v0.04 garage: upgrade purchase (ratchet clicks + a metallic clunk + chime) ---
+    n = int(0.75 * SR)
+    up = np.zeros(n)
+    for k in range(4):
+        i = int((0.03 + k * 0.06) * SR)
+        up[i:i + 600] += bandpass(rng.normal(0, 1, 600), 2000, 6000) * np.exp(-np.linspace(0, 9, 600)) * 0.5
+    i = int(0.28 * SR)
+    m = n - i
+    up[i:] += (lowpass(rng.normal(0, 1, m), 400) * np.exp(-np.linspace(0, 10, m)) * 1.2
+               + sum(np.sin(2 * np.pi * f * t(m / SR)) * np.exp(-np.linspace(0, d, m)) for f, d in [(220, 8), (660, 6), (1320, 5)]) * 0.35)
+    write("upgrade_clunk", norm(up, 0.8))
 
 
 if __name__ == "__main__":

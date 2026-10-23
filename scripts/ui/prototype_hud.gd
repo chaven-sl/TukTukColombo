@@ -153,7 +153,12 @@ func _process_body(_delta: float) -> void:
 	if player == null:
 		return
 	_speed_label.text = "%d" % roundi(player.speed_kmh)
-	_score_label.text = "%s  %d" % [tr("UI_SCORE"), GameState.score]
+	# v0.04 wallet first (cash, reputation), then the session score.
+	if GameState.career != null:
+		_score_label.text = "%s   %s   %s %d" % [EconomyFormat.rupees(GameState.career.cash()), EconomyFormat.stars(GameState.career.reputation()),
+				tr("UI_SCORE"), GameState.score]
+	else:
+		_score_label.text = "%s  %d" % [tr("UI_SCORE"), GameState.score]
 	if scoring != null and scoring.combo.is_active():
 		_combo_bar.value = scoring.combo.time_left / maxf(scoring.combo.timeout, 0.01)
 

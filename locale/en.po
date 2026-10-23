@@ -390,3 +390,173 @@ msgstr "Station Arcade"
 
 msgid "PLACE_COMMERCIAL_ROW"
 msgstr "Commercial Row"
+
+# v0.04 progression (garage, payouts, career)
+
+msgid "CAREER_1"
+msgstr "STREET ROOKIE"
+
+msgid "CAREER_2"
+msgstr "CITY DRIVER"
+
+msgid "CAREER_3"
+msgstr "TRUSTED TUK"
+
+msgid "CAREER_4"
+msgstr "COLOMBO REGULAR"
+
+msgid "CAREER_5"
+msgstr "STREET LEGEND"
+
+msgid "JOB_STANDARD"
+msgstr "STANDARD"
+
+msgid "JOB_EXPRESS"
+msgstr "EXPRESS"
+
+msgid "JOB_PREMIUM"
+msgstr "PREMIUM"
+
+msgid "PAY_BASE_FARE"
+msgstr "Base fare"
+
+msgid "PAY_PASSENGER_RATING"
+msgstr "Passenger rating"
+
+msgid "PAY_CLEAN_RIDE"
+msgstr "Clean ride"
+
+msgid "PAY_SMOOTH_STOP"
+msgstr "Smooth ride"
+
+msgid "PAY_FAST_FARE"
+msgstr "Fast fare"
+
+msgid "PAY_SKILL"
+msgstr "Driving skill"
+
+msgid "PAY_COLLISIONS"
+msgstr "Collisions"
+
+msgid "PAY_MAJOR_COLLISIONS"
+msgstr "Major collisions"
+
+msgid "PAY_JOB_BONUS"
+msgstr "Job & level bonus"
+
+msgid "PAY_TOTAL"
+msgstr "TOTAL"
+
+msgid "UI_REPUTATION"
+msgstr "Reputation"
+
+msgid "UI_CAREER_LEVEL_UP"
+msgstr "LEVEL %d — %s"
+
+msgid "UI_RETURN_TO_GARAGE"
+msgstr "RETURN TO GARAGE"
+
+msgid "UI_GARAGE_NOT_NOW"
+msgstr "Finish the hire and stop first"
+
+msgid "UI_DRIVE"
+msgstr "DRIVE"
+
+msgid "UI_LEVEL"
+msgstr "LEVEL"
+
+msgid "UI_LV"
+msgstr "LV"
+
+msgid "UI_MAX_LEVEL"
+msgstr "MAX LEVEL"
+
+msgid "UI_CURRENT"
+msgstr "CURRENT"
+
+msgid "UI_NEXT_LEVEL"
+msgstr "NEXT"
+
+msgid "UI_IMPROVEMENT"
+msgstr "IMPROVEMENT"
+
+msgid "UI_COST"
+msgstr "COST"
+
+msgid "UI_UPGRADE_FOR"
+msgstr "UPGRADE — %s"
+
+msgid "UI_NEED_MORE"
+msgstr "NEED %s MORE"
+
+msgid "UI_SESSION_SUMMARY"
+msgstr "SESSION SUMMARY"
+
+msgid "UI_SESSION_CASH"
+msgstr "Cash earned"
+
+msgid "UI_RIDES_COMPLETED"
+msgstr "Rides completed"
+
+msgid "UI_REPUTATION_EARNED"
+msgstr "Reputation earned"
+
+msgid "UI_BEST_COMBO"
+msgstr "Best combo"
+
+msgid "UI_COLLISIONS"
+msgstr "Collisions"
+
+msgid "UI_PEDESTRIAN_INCIDENTS"
+msgstr "Pedestrian incidents"
+
+msgid "UI_CONTINUE"
+msgstr "CONTINUE"
+
+msgid "UPGRADE_ENGINE"
+msgstr "ENGINE"
+
+msgid "UPGRADE_ENGINE_DESC"
+msgstr "A freshened two-stroke: stronger pull out of junctions and a little more top speed."
+
+msgid "UPGRADE_ENGINE_IMPROVE"
+msgstr "+2.5 km/h top speed, stronger acceleration"
+
+msgid "UPGRADE_BRAKES"
+msgstr "BRAKES"
+
+msgid "UPGRADE_BRAKES_DESC"
+msgstr "New shoes and cables: stops a little shorter and more confidently. Still a tuk — brake early."
+
+msgid "UPGRADE_BRAKES_IMPROVE"
+msgstr "+7% braking force"
+
+msgid "UPGRADE_HANDLING"
+msgstr "HANDLING"
+
+msgid "UPGRADE_HANDLING_DESC"
+msgstr "Tighter steering head and better tyres: more precise, more composed. It still leans — and can still tip."
+
+msgid "UPGRADE_HANDLING_IMPROVE"
+msgstr "Sharper steering, steadier response"
+
+msgid "UPGRADE_SUSPENSION"
+msgstr "SUSPENSION"
+
+msgid "UPGRADE_SUSPENSION_DESC"
+msgstr "Fresh dampers and bump stops: calmer over kerbs, potholes and landings."
+
+msgid "UPGRADE_SUSPENSION_IMPROVE"
+msgstr "+5% damping, firmer bump stops"
+
+msgid "STAT_SPEED"
+msgstr "SPEED"
+
+msgid "STAT_BRAKING"
+msgstr "BRAKING"
+
+msgid "STAT_HANDLING"
+msgstr "HANDLING"
+
+msgid "STAT_SUSPENSION"
+msgstr "SUSPENSION"

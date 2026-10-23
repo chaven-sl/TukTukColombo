@@ -10,6 +10,13 @@ extends CanvasLayer
 ##   resumes deliberately. Active rides are left untouched.
 
 signal perf_test_requested()
+## v0.04: the player asked to return to the garage (only offered when safe).
+signal garage_requested()
+
+## Returns true when leaving for the garage is safe (no hire, tuk stopped).
+var garage_check: Callable
+var _garage: Button
+var _garage_hint: Label
 
 var _overlay: Control
 var _resume: Button
@@ -40,6 +47,16 @@ func _ready() -> void:
 	box.add_child(title)
 	_resume = _button(box, "UI_RESUME", 32)
 	_resume.pressed.connect(func() -> void: GameState.set_paused(false))
+	_garage = _button(box, "UI_RETURN_TO_GARAGE", 28)
+	_garage.pressed.connect(func() -> void:
+		if garage_check.is_valid() and garage_check.call():
+			_garage.disabled = true  # one request only
+			garage_requested.emit())
+	_garage_hint = Label.new()
+	_garage_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_garage_hint.add_theme_font_size_override("font_size", 18)
+	_garage_hint.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
+	box.add_child(_garage_hint)
 	_telemetry = _button(box, "UI_DEV_TELEMETRY", 22)
 	_telemetry.pressed.connect(func() -> void: GameState.toggle_debug_hud())
 	_perf = _button(box, "UI_DEV_PERF_TEST", 22)
@@ -99,5 +116,11 @@ func handle_focus_lost() -> void:
 
 func _on_pause_changed(paused: bool) -> void:
 	_overlay.visible = paused
+	if paused and _garage != null:
+		var ok: bool = garage_check.is_valid() and garage_check.call()
+		_garage.visible = garage_check.is_valid()
+		_garage.disabled = not ok
+		_garage_hint.visible = garage_check.is_valid() and not ok
+		_garage_hint.text = tr("UI_GARAGE_NOT_NOW")
 	if paused and _resume != null:
 		_resume.grab_focus.call_deferred()

@@ -36,6 +36,14 @@ var _autopilot: AutopilotDriver
 static var options := PackedStringArray()
 
 
+## True if a perf run was requested (does not consume the flag file).
+static func is_requested() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--perf-test"):
+			return true
+	return FileAccess.file_exists(FLAG)
+
+
 static func requested_seconds() -> float:
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--perf-test":
