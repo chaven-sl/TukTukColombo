@@ -16,6 +16,10 @@ signal finished(summary: Dictionary)
 
 const FLAG := "user://perf_test.flag"
 const DEFAULT_SECONDS := 300.0
+## Recording starts after this warm-up (first-frame sign bake / pipeline
+## compiles are a load cost, not gameplay frame rate). The autopilot drives
+## from the start. v0.03B; earlier device results included the warm-up.
+const WARMUP_SECONDS := 3.0
 
 var monitor: SessionPerformanceMonitor
 var player: TukController
@@ -24,6 +28,7 @@ var traffic: TrafficManager
 var running := false
 var duration := DEFAULT_SECONDS
 var _t := 0.0
+var _warmup := 0.0
 var _autopilot: AutopilotDriver
 
 
@@ -48,13 +53,18 @@ func begin(seconds: float) -> void:
 	_autopilot = AutopilotDriver.new()
 	add_child(_autopilot)
 	_autopilot.setup(player, network, traffic, 7)
-	monitor.start()
+	_warmup = WARMUP_SECONDS
 	running = true
 	print("[DevicePerfTest] started (%.0f s)" % seconds)
 
 
 func _process(delta: float) -> void:
 	if not running or get_tree().paused:
+		return
+	if _warmup > 0.0:
+		_warmup -= delta
+		if _warmup <= 0.0:
+			monitor.start()
 		return
 	_t += delta
 	if _t >= duration:

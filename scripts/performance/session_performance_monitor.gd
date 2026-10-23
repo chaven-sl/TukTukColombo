@@ -118,6 +118,7 @@ func summary() -> Dictionary:
 		"fps_min_stable_1s": snappedf(min_stable if min_stable != INF else 0.0, 0.1),
 		"frame_ms_avg": snappedf(mean_frame * 1000.0, 0.01),
 		"frame_ms_p95": snappedf(p95_frame * 1000.0, 0.01),
+		"seconds_below_50fps": _seconds_below(50.0),
 		"traffic_active_range": [_traffic_min, _traffic_max],
 		"traffic_ceiling_range": [_ceiling_min, _ceiling_max],
 		"budget_changes": _budget_changes,
@@ -145,3 +146,13 @@ func save_summary(tag: String) -> String:
 		f.close()
 	print("[PerfMonitor] %s %s" % [tag, JSON.stringify(data)])
 	return path
+
+
+## v0.03B: whole seconds under `fps` — separates sustained slow stretches
+## from isolated vsync misses (which only show in the p5 frame figure).
+func _seconds_below(fps: float) -> int:
+	var n := 0
+	for f in _second_fps:
+		if f < fps:
+			n += 1
+	return n
