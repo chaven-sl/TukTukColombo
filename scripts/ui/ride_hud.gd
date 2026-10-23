@@ -23,11 +23,11 @@ var _offer_label: Label
 var _ride_panel: PanelContainer
 var _ride_label: Label
 var _bubble: Label
-var _notice: Label
+## HUD root inside the safe area (v0.03A2).
+var safe_root: HudSafeArea
 var _result_panel: PanelContainer
 var _result_label: Label
 var _result_timer := 0.0
-var _notice_timer := 0.0
 var _mood_timer := 0.0
 var _mood_state: PassengerMood.Mood = PassengerMood.Mood.HAPPY
 var _pickup_beacons: Dictionary = {}  # PassengerOffer -> MeshInstance3D
@@ -44,7 +44,6 @@ func setup(p_rides: RideManager, p_offers: PassengerOfferManager, p_world: Node3
 	guidance = p_guidance
 	rides.result_ready.connect(_on_result)
 	rides.reaction.connect(_on_reaction)
-	EventBus.pedestrian_impact.connect(_on_pedestrian_impact)
 	for offer in offers.offers:
 		_pickup_beacons[offer] = _beacon(offer.profile.marker_color, 0.18)
 	_dest_beacon = _beacon(Color(0.2, 1.0, 0.45), 0.35)
@@ -63,39 +62,56 @@ func setup(p_rides: RideManager, p_offers: PassengerOfferManager, p_world: Node3
 
 func _ready() -> void:
 	layer = 20
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(root)
-	# Hire card top-left: clear of both thumb zones and the GPS/combo line.
-	_offer_panel = _panel(root, Control.PRESET_TOP_LEFT, Vector2(24, 100), Vector2(400, 0))
-	_offer_label = _label(_offer_panel, 22)
-	_gps_panel = _panel(root, Control.PRESET_CENTER_TOP, Vector2(-200, 12), Vector2(400, 0))
+	# v0.03A2: all cards live inside the safe area and wrap their text.
+	safe_root = HudSafeArea.new()
+	safe_root.name = "SafeArea"
+	add_child(safe_root)
+	var root: Control = safe_root
+	_offer_panel = _panel(root)
+	_offer_label = _label(_offer_panel, 21)
+	_gps_panel = _panel(root)
 	_gps_label = _label(_gps_panel, 30)
 	_gps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	(_gps_panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = Color(0.02, 0.18, 0.28, 0.82)
-	_ride_panel = _panel(root, Control.PRESET_TOP_RIGHT, Vector2(-380, 18), Vector2(360, 0))
+	_ride_panel = _panel(root)
 	_ride_label = _label(_ride_panel, 20)
-	_result_panel = _panel(root, Control.PRESET_CENTER, Vector2(-250, -190), Vector2(500, 0))
+	_result_panel = _panel(root)
 	_result_label = _label(_result_panel, 22)
+	_result_label.max_lines_visible = 16
+	_offer_label.max_lines_visible = 7  # key facts first; long names wrap, never reach the speed readout
+	_ride_label.max_lines_visible = 8
 	_bubble = Label.new()
-	_bubble.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_bubble.position = Vector2(-350, -260)
-	_bubble.custom_minimum_size = Vector2(700, 0)
 	_bubble.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_bubble.max_lines_visible = 2
+	_bubble.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_bubble.label_settings = _settings(30, Color(1, 1, 1))
 	root.add_child(_bubble)
-	_notice = Label.new()
-	_notice.set_anchors_preset(Control.PRESET_CENTER)
-	_notice.position = Vector2(-350, -40)
-	_notice.custom_minimum_size = Vector2(700, 0)
-	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_notice.label_settings = _settings(44, Color(1.0, 0.35, 0.3))
-	root.add_child(_notice)
 	_offer_panel.visible = false
 	_gps_panel.visible = false
 	_ride_panel.visible = false
 	_result_panel.visible = false
+	_bubble.visible = false
+	safe_root.resized.connect(layout)
+	layout()
+
+
+## Positions every card relative to the safe root; widths shrink on narrow
+## safe areas so nothing reaches the screen edge.
+func layout() -> void:
+	var w := safe_root.size.x
+	var card := minf(400.0, w * 0.36)
+	PrototypeHud.place(_offer_panel, Vector2.ZERO, Rect2(0, 76, card, 0))  # under score and the touch pause button
+	var gps := minf(440.0, w - 2.0 * card - 24.0)
+	PrototypeHud.place(_gps_panel, Vector2(0.5, 0.0), Rect2(-gps * 0.5, 0, gps, 0))
+	PrototypeHud.place(_ride_panel, Vector2(1.0, 0.0), Rect2(-card, 0, card, 0))
+	# Result card takes the right column (the ride panel is gone by then),
+	# leaving the centre column to the banners.
+	PrototypeHud.place(_result_panel, Vector2(1.0, 0.0), Rect2(-card, 0, card, 0))
+	# Passenger line: centre column near the bottom, between the steering pad
+	# and the pedals, below the banners.
+	var bubble := clampf(w - 2.0 * card - 32.0, 260.0, 700.0)
+	PrototypeHud.place(_bubble, Vector2(0.5, 1.0), Rect2(-bubble * 0.5, -196, bubble, 40))
 
 
 func _settings(size: int, color: Color) -> LabelSettings:
@@ -107,16 +123,13 @@ func _settings(size: int, color: Color) -> LabelSettings:
 	return ls
 
 
-func _panel(parent: Control, preset: Control.LayoutPreset, pos: Vector2, min_size: Vector2) -> PanelContainer:
+func _panel(parent: Control) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.05, 0.07, 0.72)
 	style.set_corner_radius_all(6)
 	style.set_content_margin_all(12)
 	panel.add_theme_stylebox_override("panel", style)
-	panel.set_anchors_preset(preset)
-	panel.position = pos
-	panel.custom_minimum_size = min_size
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(panel)
 	return panel
@@ -125,6 +138,7 @@ func _panel(parent: Control, preset: Control.LayoutPreset, pos: Vector2, min_siz
 func _label(parent: Control, size: int) -> Label:
 	var label := Label.new()
 	label.add_theme_font_size_override("font_size", size)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART  # long (translated) text wraps, never overflows
 	parent.add_child(label)
 	return label
 
@@ -172,9 +186,6 @@ func _process(delta: float) -> void:
 		if _result_timer <= 0.0:
 			_result_panel.visible = false
 	_bubble.visible = rides.current_reaction_time > 0.0
-	if _notice_timer > 0.0:
-		_notice_timer -= delta
-	_notice.visible = _notice_timer > 0.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -234,7 +245,6 @@ func _update_offer_panel() -> void:
 				lines.append("%s: %s" % [tr("UI_TRIP"), km(offer.route_m)])
 				lines.append("%s: %s" % [tr("UI_PRIORITY"), tr(offer.profile.priority_key)])
 				if not touch_mode:
-					lines.append("")
 					lines.append(tr("UI_ACCEPT_HIRE") % interact_key_label())
 		RideManager.RideState.EN_ROUTE_TO_PICKUP:
 			lines.append(tr("UI_PICKUP_HINT") % tr(rides.offer.profile.display_name_key))
@@ -275,11 +285,6 @@ func _on_reaction(key: String) -> void:
 	_bubble.text = "“%s”" % tr(key)
 
 
-func _on_pedestrian_impact(_event: PedestrianEvent) -> void:
-	_notice.text = tr("UI_UNSAFE_DRIVING")
-	_notice_timer = 2.5
-
-
 func _on_result(result: RideResult) -> void:
 	var t := result.telemetry
 	var lines := PackedStringArray()
@@ -287,7 +292,13 @@ func _on_result(result: RideResult) -> void:
 		lines.append(tr("UI_RIDE_COMPLETE"))
 	else:
 		lines.append(tr("UI_RIDE_FAILED"))
-		lines.append(tr("FAIL_PEDESTRIAN") if result.fail_reason == RideResult.FailReason.PEDESTRIAN_IMPACT else tr("FAIL_ROLLOVER"))
+		match result.fail_reason:
+			RideResult.FailReason.PEDESTRIAN_IMPACT:
+				lines.append(tr("FAIL_PEDESTRIAN"))
+			RideResult.FailReason.VEHICLE_DISABLED:
+				lines.append(tr("FAIL_VEHICLE_DISABLED"))
+			_:
+				lines.append(tr("FAIL_ROLLOVER"))
 	lines.append("")
 	lines.append("%-20s %s" % [tr("UI_PASSENGER"), tr(result.profile.display_name_key)])
 	lines.append("%-20s %s" % [tr("UI_DISTANCE"), km(t.distance_m)])

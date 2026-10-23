@@ -105,7 +105,7 @@ func _make_panel(c: int, label_key: String, color: Color) -> void:
 
 func relayout() -> void:
 	var view := get_viewport().get_visible_rect().size
-	safe_rect = MobileLayout.safe_rect_for(get_viewport())
+	safe_rect = HudSafeArea.safe_rect(get_viewport())  # same safe rect as the rest of the HUD
 	apply_layout(view, safe_rect)
 
 
