@@ -13,6 +13,7 @@ extends Node
 ## failure. Results: user://test_results/traffic_soak.json
 
 const MAIN := preload("res://scenes/prototype/prototype_main.tscn")
+const FORT_PETTAH := "res://scenes/districts/fort_pettah/fort_pettah_slice.tscn"
 
 var duration := 360.0
 var screenshots := false
@@ -25,6 +26,16 @@ var incidents_mode := false
 ## v0.03A2: scripted off-road episodes (pavement charges at people, prop
 ## strikes, building crashes, hard wall hits) every 10 s, autopilot between.
 var offroad_mode := false
+## v0.03B: run on the Fort–Pettah slice with incidents + off-road episodes +
+## scripted hires (accept → board → GPS → drive → drop-off) all together.
+var fort_pettah := false
+var rides: RideManager
+var offers: PassengerOfferManager
+var _hire_phase := 0
+var _hire_timer := 20.0
+var _hire_offer: PassengerOffer = null
+var _hire_index := 0
+var _hire := {"attempted": 0, "accepted": 0, "boarded": 0, "completed": 0, "failed": 0, "aborted": 0, "gps_plans": 0, "gps_invalid": 0}
 var _offroad_timer := 6.0
 var _offroad_index := 0
 var _episode_left := 0.0
@@ -102,6 +113,10 @@ func _ready() -> void:
 			incidents_mode = true
 		elif arg == "--offroad":
 			offroad_mode = true
+		elif arg == "--fort-pettah":
+			fort_pettah = true
+			incidents_mode = true
+			offroad_mode = true
 		elif arg.begins_with("--traffic-seed="):
 			traffic_seed = int(arg.get_slice("=", 1))
 		elif arg == "--no-incident-reactions":
@@ -112,7 +127,7 @@ func _ready() -> void:
 			for part in arg.get_slice("=", 1).split(","):
 				_shot_times.append(float(part))
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	main = MAIN.instantiate()
+	main = (load(FORT_PETTAH) as PackedScene).instantiate() if fort_pettah else MAIN.instantiate()
 	main.get_node("TrafficManager").set("rng_seed", traffic_seed)
 	main.set("incident_seed", 7)  # fixed like traffic; see v0.03A1 report (seed sensitivity)
 	main.set("human_seed", 7)
@@ -127,6 +142,9 @@ func _ready() -> void:
 	recovery = main.get_node("WorldRecovery")
 	props = main.get_node("ImpactProps")
 	guidance = main.get_node("RouteGuidance")
+	rides = main.get_node("RideManager")
+	offers = main.get_node("PassengerOfferManager")
+	EventBus.ride_finished.connect(_on_ride_finished)
 	if no_reactions:
 		EventBus.collision_event.disconnect(incidents.on_collision)
 	autopilot = AutopilotDriver.new()
@@ -197,7 +215,9 @@ func _physics_process(delta: float) -> void:
 	_log_passes()
 	if incidents_mode:
 		_drive_incidents(delta)
-	if offroad_mode:
+	if fort_pettah and (_hire_phase != 0 or _hire_due(delta)):
+		_drive_hire(delta)
+	elif offroad_mode:
 		_drive_offroad(delta)
 	_check_teleports(delta)
 	_track_waits(delta)
@@ -218,8 +238,10 @@ func _drive_offroad(delta: float) -> void:
 		_max_disabled_s = maxf(_max_disabled_s, _disabled_time)
 	else:
 		_disabled_time = 0.0
-	if guidance.plan != null or guidance.phase != RouteGuidance.Phase.NONE:
-		_gps_corrupt += 1  # no ride is ever accepted in the soak
+	if not fort_pettah and (guidance.plan != null or guidance.phase != RouteGuidance.Phase.NONE):
+		_gps_corrupt += 1  # no ride is ever accepted in the plain off-road soak
+	elif fort_pettah and rides.state == RideManager.RideState.NO_RIDE and guidance.plan != null:
+		_gps_corrupt += 1  # a plan must never outlive its ride
 	if _episode_left > 0.0:
 		_episode_left -= delta
 		if _episode_kind == 0 or _episode_kind == 1:
@@ -244,6 +266,22 @@ func _drive_offroad(delta: float) -> void:
 	autopilot.set_physics_process(false)
 	damage.state.grace_left = 0.0
 	match _episode_kind:
+		0 when fort_pettah:  # pavement charge along a district pavement
+			var nodes := humans.network.node_pos
+			var ni := (_offroad_index * 53) % nodes.size()
+			var np := nodes[ni]
+			var reset := network.find_reset_transform(np)
+			var along := -reset.basis.z
+			for k in 2:
+				var a: HumanAgent = humans._acquire(HumanAgent.Role.SIDEWALK_WALKER, humans.network.nearest_node(np + along * (14.0 + k * 6.0)))
+				if a != null:
+					a.behaviour = humans.get("_pedestrian_behaviour")
+					a.global_position = humans.network.node_pos[humans.network.nearest_node(np + along * (14.0 + k * 6.0))]
+					a.idle_timer = 6.0
+					a.set_state(HumanAgent.State.IDLE)
+			_launch_soak(np, along, 30.0)
+			_offroad["pavement"] = int(_offroad["pavement"]) + 1
+			_episode_left = 3.5
 		0:  # pavement charge at two people (east pavement of the long straight)
 			var z := -60.0 - float(_offroad_index * 37 % 170)
 			for k in 2:
@@ -266,11 +304,124 @@ func _drive_offroad(delta: float) -> void:
 		2, 3:  # building crash (disabling) / boundary wall hard hit (damaged)
 			var body_path := "DistrictBoundary/BoundaryBuildings" if _episode_kind == 2 else "DistrictBoundary/BoundaryWalls"
 			var body := network.get_node(body_path)
+			if fort_pettah and _episode_kind == 2:
+				body = main.get_node("DistrictArt/BuildingProxies")  # crash into a shop-house
 			var shape := body.get_child(_offroad_index % body.get_child_count()) as CollisionShape3D
 			var out := -shape.global_transform.basis.z
 			_launch_soak(shape.global_position - out * 16.0, out, 45.0 if _episode_kind == 2 else 24.0)
 			_offroad["crashes" if _episode_kind == 2 else "hard"] = int(_offroad["crashes" if _episode_kind == 2 else "hard"]) + 1
 			_episode_left = 2.0
+
+
+func _hire_due(delta: float) -> bool:
+	if damage.state.state == VehicleDamageState.State.DISABLED or _episode_left > 0.0:
+		return false
+	_hire_timer -= delta
+	return _hire_timer <= 0.0
+
+
+func _stop_player() -> void:
+	player.input.throttle = 0.0
+	player.input.steer = 0.0
+	player.input.brake = 1.0
+	player.input.handbrake = true
+
+
+func _abort_hire(reason: String) -> void:
+	_hire["aborted"] = int(_hire["aborted"]) + 1
+	if OS.has_environment("SOAK_DEBUG"):
+		print("[hire] abort (%s) t=%.1f" % [reason, _t])
+	_hire_phase = 0
+	_hire_timer = 25.0
+	player.input.brake = 0.0
+	player.input.handbrake = false
+	autopilot.set_physics_process(true)
+
+
+## Scripted hire: stop beside an available pickup, accept, board, follow the
+## GPS with the autopilot for a while, then stop at the destination.
+func _drive_hire(delta: float) -> void:
+	_hire_timer -= delta
+	match _hire_phase:
+		0:
+			var avail: Array[PassengerOffer] = []
+			for o in offers.offers:
+				if o.state == PassengerOffer.State.AVAILABLE and o.passenger != null:
+					avail.append(o)
+			if avail.is_empty() or rides.state != RideManager.RideState.NO_RIDE:
+				_hire_timer = 5.0
+				return
+			_hire_offer = avail[_hire_index % avail.size()]
+			_hire_index += 1
+			_hire["attempted"] = int(_hire["attempted"]) + 1
+			autopilot.set_physics_process(false)
+			var net := humans.network
+			var out := net.node_out[_hire_offer.pickup.node_id]
+			player.teleport(Transform3D(MathUtil.basis_from_forward(out.cross(Vector3.UP)), _hire_offer.pickup.global_position - out * 4.0 + Vector3.UP * 0.3))
+			damage.state.grace_left = 0.0
+			_hire_phase = 1
+			_hire_timer = 12.0
+		1:
+			_stop_player()
+			if rides.nearby_offer == _hire_offer and rides.state == RideManager.RideState.NO_RIDE:
+				if rides.request_accept():
+					_hire["accepted"] = int(_hire["accepted"]) + 1
+					_hire_phase = 2
+					_hire_timer = 25.0
+			elif _hire_timer <= 0.0:
+				_abort_hire("no offer card")
+		2:
+			_stop_player()
+			if rides.state == RideManager.RideState.ACTIVE:
+				_hire["boarded"] = int(_hire["boarded"]) + 1
+				if guidance.plan != null and not guidance.plan.is_empty():
+					_hire["gps_plans"] = int(_hire["gps_plans"]) + 1
+				else:
+					_hire["gps_invalid"] = int(_hire["gps_invalid"]) + 1
+				player.input.brake = 0.0
+				player.input.handbrake = false
+				autopilot.set_physics_process(true)
+				_hire_phase = 3
+				_hire_timer = 12.0
+			elif _hire_timer <= 0.0 or rides.state == RideManager.RideState.NO_RIDE:
+				_abort_hire("never boarded")
+		3:
+			if rides.state != RideManager.RideState.ACTIVE:
+				_hire_phase = 5  # finished early (e.g. failed); wait for idle
+				_hire_timer = 20.0
+			elif _hire_timer <= 0.0 and damage.state.state != VehicleDamageState.State.DISABLED:
+				autopilot.set_physics_process(false)
+				var net := humans.network
+				var dest := _hire_offer.destination
+				var out := net.node_out[dest.node_id]
+				player.teleport(Transform3D(MathUtil.basis_from_forward(out.cross(Vector3.UP)), dest.global_position - out * 4.0 + Vector3.UP * 0.3))
+				damage.state.grace_left = 0.0
+				_hire_phase = 4
+				_hire_timer = 25.0
+		4:
+			_stop_player()
+			if rides.state != RideManager.RideState.ACTIVE:
+				_hire_phase = 5
+				_hire_timer = 20.0
+			elif _hire_timer <= 0.0:
+				_abort_hire("no drop-off")
+		5:
+			_stop_player()
+			if rides.state == RideManager.RideState.NO_RIDE or _hire_timer <= 0.0:
+				_hire_phase = 0
+				_hire_timer = 30.0
+				player.input.brake = 0.0
+				player.input.handbrake = false
+				autopilot.set_physics_process(true)
+				if rides.state != RideManager.RideState.NO_RIDE:
+					_abort_hire("stuck after ride")
+
+
+func _on_ride_finished(r: RideResult) -> void:
+	if r.outcome == RideResult.Outcome.COMPLETED:
+		_hire["completed"] = int(_hire["completed"]) + 1
+	else:
+		_hire["failed"] = int(_hire["failed"]) + 1
 
 
 func _launch_soak(pos: Vector3, dir: Vector3, kmh: float) -> void:
@@ -593,7 +744,8 @@ func _finish() -> void:
 				"pedestrian_impacts": humans.stats_impacts}
 		print("[Soak] offroad %s" % JSON.stringify(_report["offroad"]))
 		var o: Dictionary = _report["offroad"]
-		_expect("off-road episodes ran", int(o["episodes"]) >= int(duration / 14.0) - 1, str(o["episodes"]))
+		# Fort–Pettah mode shares the clock with hires (episodes pause during a ride).
+		_expect("off-road episodes ran", int(o["episodes"]) >= int(duration / (20.0 if fort_pettah else 14.0)) - 1, str(o["episodes"]))
 		_expect("pedestrians evaded the pavement charges", int(o["evasions"]) + int(o["dives"]) > 0, "%d evades, %d dives" % [o["evasions"], o["dives"]])
 		_expect("props knocked and respawning", int(o["props_knocked"]) > 0, str(o["props_knocked"]))
 		_expect("debris bounded", props.active_debris() <= ImpactPropManager.DEBRIS_POOL, str(props.active_debris()))
@@ -611,8 +763,16 @@ func _finish() -> void:
 				"follower_horns": incidents.stats_follower_horns, "timeouts": incidents.stats_timeouts, "resolved": incidents.stats_resolved,
 				"max_drivers": _max_drivers, "max_held": _max_held, "max_hold_s": snappedf(_max_hold_s, 0.1)}
 		print("[Soak] incidents %s" % JSON.stringify(_report["incidents"]))
+	if fort_pettah:
+		_report["hires"] = _hire
+		print("[Soak] hires %s" % JSON.stringify(_hire))
+		_expect("hires attempted (>= 4)", int(_hire["attempted"]) >= 4, str(_hire["attempted"]))
+		_expect("hires completed (>= 3)", int(_hire["completed"]) >= 3, "%d completed, %d failed" % [_hire["completed"], _hire["failed"]])
+		_expect("every boarded ride had a GPS plan", int(_hire["gps_invalid"]) == 0 and int(_hire["gps_plans"]) == int(_hire["boarded"]), str(_hire))
+		_expect("no ride stuck after drop-off", rides.state == RideManager.RideState.NO_RIDE or _hire_phase != 0, RideManager.RideState.keys()[rides.state])
 	if incidents_mode:
-		_expect("incidents injected", _incident_cycle >= int(duration / 7.0) - 2, str(_incident_cycle))
+		# Fort–Pettah: pickups/drop-offs often have no traffic within 35 m to hit.
+		_expect("incidents injected", _incident_cycle >= int(duration / (14.0 if fort_pettah else 7.0)) - 2, str(_incident_cycle))
 		_expect("altercations happen", incidents.stats_altercations > 0 and incidents.stats_driver_exits > 0,
 				"%d altercations, %d exits" % [incidents.stats_altercations, incidents.stats_driver_exits])
 		_expect("no runaway incidents (<= injected)", incidents.stats_light + incidents.stats_altercations <= _incident_cycle,

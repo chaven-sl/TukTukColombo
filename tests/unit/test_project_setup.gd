@@ -42,10 +42,10 @@ func test_sinhala_and_tamil_load_with_fallback() -> void:
 	TranslationServer.set_locale("en")
 
 
-func test_traffic_classes_cover_four_types_with_varied_speeds() -> void:
+func test_traffic_classes_cover_five_types_with_varied_speeds() -> void:
 	var kinds := {}
 	var pool := 0
-	for name in ["car", "bus", "motorcycle", "tuk"]:
+	for name in ["car", "bus", "motorcycle", "tuk", "van"]:
 		var cls := load("res://resources/traffic/%s.tres" % name) as TrafficVehicleClass
 		check(cls != null, "%s class loads" % name)
 		if cls == null:
@@ -53,8 +53,8 @@ func test_traffic_classes_cover_four_types_with_varied_speeds() -> void:
 		kinds[cls.kind] = true
 		pool += cls.pool_count
 		check(cls.max_speed_kmh - cls.min_speed_kmh >= 15.0, "%s has a wide speed range" % name)
-	check_eq(kinds.size(), 4, "four logical traffic types")
-	check_eq(pool, 24, "pool capacity 24")
+	check_eq(kinds.size(), 5, "five logical traffic types (v0.03B adds the van)")
+	check_eq(pool, 24, "pool capacity still 24")
 
 
 func test_new_keys_exist_in_every_catalogue() -> void:

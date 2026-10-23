@@ -351,7 +351,10 @@ func _add_ride_steps(pid: StringName) -> void:
 					if rides.state == RideManager.RideState.ACTIVE:
 						_check("boarded: approached → boarding → riding", seen.has("h_%d" % HumanAgent.State.APPROACHING_TUK)
 								and seen.has("h_%d" % HumanAgent.State.BOARDING) and o.passenger.state == HumanAgent.State.RIDING)
-						_check("passenger hidden while seated", not o.passenger.visible)
+						# v0.03B: the passenger stays visible, seated on SeatMarker.
+						_check("passenger visible and attached to SeatMarker", o.passenger.visible and o.passenger.presentation_attached_to != null
+								and o.passenger.presentation_attached_to.name == "SeatMarker" and o.passenger.visual.get_parent() == o.passenger.presentation_attached_to)
+						_check("passenger rig SEATED", o.passenger.rig != null and o.passenger.rig.mode == CharacterRig.Mode.SEATED)
 						_check("ride ACTIVE with telemetry", rides.telemetry != null)
 						# Drive a little to accumulate telemetry, then hop to the destination.
 						_brake = false
@@ -374,6 +377,7 @@ func _add_ride_steps(pid: StringName) -> void:
 						_check("ride COMPLETED", r.outcome == RideResult.Outcome.COMPLETED)
 						_check("fare computed (base %d %+d = %d)" % [r.base_fare, r.adjustment, r.final_fare], r.base_fare > 0 and r.final_fare == r.base_fare + r.adjustment)
 						_check("passenger EXITING and visible", o.passenger != null and o.passenger.state == HumanAgent.State.EXITING and o.passenger.visible)
+						_check("passenger detached from SeatMarker on exit", o.passenger != null and o.passenger.presentation_attached_to == null and o.passenger.visual.get_parent() == o.passenger)
 						_ctx["phase"] = 4
 				4:
 					if rides.state == RideManager.RideState.NO_RIDE:

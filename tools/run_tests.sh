@@ -50,10 +50,12 @@ run "GPS + hire UX + traffic incidents (real scene)" --fixed-fps 60 res://tests/
 run "HUD safe-area matrix (5 aspect ratios x 6 safe areas)" --fixed-fps 60 res://tests/scenarios/hud_safe_area_test.tscn
 run "World containment + crash damage + recovery + props" --fixed-fps 60 res://tests/scenarios/world_containment_test.tscn
 run "Pavement safety: pedestrian emergency evasion" --fixed-fps 60 res://tests/scenarios/pavement_safety_test.tscn
+run "Fort–Pettah slice: art / presentation / audio (v0.03B)" --fixed-fps 60 res://tests/scenarios/fort_pettah_test.tscn
 run "Mobile touch (forced touch controls)" --fixed-fps 60 res://tests/scenarios/mobile_touch_test.tscn -- --force-touch-controls
 run "Traffic + humans soak (6 min, driving)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360
 run "Traffic + humans + incidents soak (4 min, scripted collisions)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=240 --incidents
 run "Traffic + humans + off-road soak (4 min, pavement / props / crashes)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=240 --offroad
+run "Fort–Pettah soak (6 min: traffic, people, hires, GPS, incidents, off-road, damage)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 --fort-pettah
 run "Traffic + humans soak (6 min, junction stress)" --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 --park-near-junction
 
 echo ""
