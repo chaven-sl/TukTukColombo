@@ -39,6 +39,9 @@ var leader_gap := INF
 ## Scoring/collision timestamps (SimClock seconds).
 var last_award_time := -1000.0
 var last_collision_time := -1000.0
+## v0.03A1: held stationary by a traffic incident (driver arguing). Never
+## despawned or recycled while set; TrafficIncidentManager clears it.
+var incident_hold := false
 
 var body_meshes: Array[MeshInstance3D] = []
 
@@ -57,6 +60,7 @@ func activate(p_lane: Lane, p_s: float, p_speed: float, p_target: float, p_next:
 	granted_connector = null
 	hold_timer = 0.0
 	stopped_time = 0.0
+	incident_hold = false
 	at_sink = false
 	waiting_for_signal = false
 	leader_gap = INF
@@ -81,6 +85,7 @@ func deactivate() -> void:
 	next_lane = null
 	prev_lane = null
 	is_active = false
+	incident_hold = false
 	visible = false
 	collision_layer = 0
 	speed = 0.0
@@ -99,7 +104,9 @@ func notify_player_contact(now: float) -> void:
 
 ## Advances one physics tick. Returns false when the agent should be recycled.
 func step(delta: float, ctx: TrafficManager) -> bool:
-	if hold_timer > 0.0:
+	if incident_hold:
+		speed = move_toward(speed, 0.0, vehicle_class.max_decel * delta)
+	elif hold_timer > 0.0:
 		hold_timer -= delta
 		speed = move_toward(speed, 0.0, vehicle_class.max_decel * delta)
 	else:

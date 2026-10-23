@@ -121,6 +121,8 @@ static func reaction_material(r: HumanAgent.Reaction) -> StandardMaterial3D:
 			color = Color(1.0, 0.5, 0.1)
 		HumanAgent.Reaction.FREEZE:
 			color = Color(1.0, 0.15, 0.1)
+		HumanAgent.Reaction.ANGRY:
+			color = Color(0.95, 0.05, 0.2)
 	return marker_material(color)
 
 

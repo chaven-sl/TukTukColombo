@@ -20,3 +20,5 @@ pedestrian_danger_sensitivity = 1.0
 speed_preference_kmh = 55.0
 speed_tolerance_kmh = 15.0
 expected_speed_kmh = 32.0
+collision_reaction_key = "REACT_COLLISION_LATE"
+incident_reaction_key = "REACT_INCIDENT_LATE"

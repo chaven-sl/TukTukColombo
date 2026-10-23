@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DriverTemperament" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/traffic/driver_temperament.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"hothead"
+weight = 0.2
+horn_chance = 1.0
+escalate_light_chance = 0.5
+exit_chance_moderate = 0.85
+exit_chance_major = 1.0
+argue_seconds = Vector2(3.4, 5.2)
+intensity = 0.9
+argue_keys = PackedStringArray("DRIVER_ARGUE_BLIND", "DRIVER_ARGUE_WHO_TAUGHT", "DRIVER_ARGUE_LOOK", "DRIVER_ARGUE_PAY")

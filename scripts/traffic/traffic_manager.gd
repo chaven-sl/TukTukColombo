@@ -20,6 +20,8 @@ var camera: Camera3D
 var budget: AdaptiveTrafficBudget
 var pool := TrafficPool.new()
 var active_agents: Array[TrafficAgent] = []
+## Every pooled agent by agent_id (resolves CollisionEvent.other_agent_id).
+var agents_by_id: Array[TrafficAgent] = []
 var rng := RandomNumberGenerator.new()
 
 # Per-tick player context, cached so agents never query the player node.
@@ -74,10 +76,19 @@ func _create_pool() -> void:
 	for cls in vehicle_classes:
 		for i in cls.pool_count:
 			var agent := TrafficAgentFactory.create_agent(cls, id)
+			agents_by_id.append(agent)
 			id += 1
 			add_child(agent)
 			agent.deactivate()
 			pool.add(agent)
+
+
+## Active agent for a CollisionEvent.other_agent_id, or null.
+func agent_by_id(id: int) -> TrafficAgent:
+	if id < 0 or id >= agents_by_id.size():
+		return null
+	var a := agents_by_id[id]
+	return a if a.is_active else null
 
 
 func pool_capacity() -> int:
@@ -104,7 +115,7 @@ func _physics_process(delta: float) -> void:
 	var i := active_agents.size() - 1
 	while i >= 0:
 		var agent := active_agents[i]
-		if not agent.step(delta, self):
+		if not agent.step(delta, self) and not agent.incident_hold:
 			stats_sink_despawns += 1
 			_despawn_at(i)
 		i -= 1
@@ -292,7 +303,7 @@ func _despawn_pass() -> void:
 	for idx in range(active_agents.size() - 1, -1, -1):
 		var agent := active_agents[idx]
 		var d2 := agent.global_position.distance_squared_to(player_position)
-		if is_in_view(agent.global_position):
+		if agent.incident_hold or is_in_view(agent.global_position):
 			continue
 		if d2 > far_sq:
 			_despawn_at(idx)

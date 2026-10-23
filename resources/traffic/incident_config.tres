@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="IncidentConfig" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://data/traffic/incident_config.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/traffic/temperament_calm.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/traffic/temperament_impatient.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/traffic/temperament_hothead.tres" id="4"]
+
+[resource]
+script = ExtResource("1")
+temperaments = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4")])

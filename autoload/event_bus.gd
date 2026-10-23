@@ -33,3 +33,13 @@ signal ride_finished(result: RideResult)
 ## The current passenger reacted (translation key of the line).
 signal passenger_reaction(reaction_key: String, profile_id: StringName)
 
+
+# --- v0.03A1 traffic incidents (audio/presentation hooks; never a reward) ---
+## A traffic collision reaction began. `tier` is IncidentRules.Tier.
+signal traffic_incident_started(tier: int, world_position: Vector3)
+## The incident is over and the traffic vehicle is moving again.
+signal traffic_incident_resolved(tier: int)
+## A traffic horn. `pattern` is TrafficIncidentManager.Horn (ANGRY, REPEATED, NEARBY).
+signal traffic_horn(world_position: Vector3, pattern: int)
+## A driver shouted a line (translation key) — bubble now, voice later.
+signal driver_shout(world_position: Vector3, line_key: String)

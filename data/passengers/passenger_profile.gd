@@ -41,6 +41,12 @@ extends Resource
 ## Must be positive for every profile: nobody enjoys endangering people.
 @export var pedestrian_danger_sensitivity := 1.0
 
+@export_group("Reactions (v0.03A1)")
+## Line when the tuk hits traffic (still always a negative event).
+@export var collision_reaction_key := "REACT_COLLISION"
+## Line when a hit driver stops / gets out (the delay and the scene).
+@export var incident_reaction_key := ""
+
 @export_group("Speed")
 @export var speed_preference_kmh := 40.0
 ## Comfortable band around the preferred speed.

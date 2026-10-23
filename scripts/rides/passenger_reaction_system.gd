@@ -6,7 +6,9 @@ extends RefCounted
 ## passenger comments now and then rather than every second.
 
 const PRIORITY := {
-	"REACT_PEDESTRIAN_DANGER": 100, "REACT_COLLISION": 90, "REACT_TWO_WHEEL_NEG": 70,
+	"REACT_PEDESTRIAN_DANGER": 100, "REACT_COLLISION": 90, "REACT_COLLISION_LATE": 90,
+	"REACT_COLLISION_CAREFUL": 90, "REACT_COLLISION_THRILL": 90, "REACT_INCIDENT_LATE": 80,
+	"REACT_INCIDENT_CAREFUL": 80, "REACT_INCIDENT_THRILL": 80, "REACT_TWO_WHEEL_NEG": 70,
 	"REACT_TWO_WHEEL_POS": 60, "REACT_TIGHT_GAP_POS": 55, "REACT_TIGHT_GAP_NEG": 55,
 	"REACT_CLOSE_CALL_POS": 50, "REACT_CLOSE_CALL_NEG": 50, "REACT_TOO_FAST": 40,
 	"REACT_HURRY_UP": 35, "REACT_GOOD_SPEED": 20,
@@ -42,8 +44,16 @@ func on_skill(event_type: int) -> void:
 			_offer("REACT_CLOSE_CALL_NEG")
 
 
+## Profile-specific line, always negative in meaning: even the thrill seeker
+## never rewards an actual crash.
 func on_collision() -> void:
-	_offer("REACT_COLLISION")
+	_offer(profile.collision_reaction_key if not profile.collision_reaction_key.is_empty() else "REACT_COLLISION")
+
+
+## A hit driver stopped / got out (v0.03A1). Comment on the scene and the delay.
+func on_incident() -> void:
+	if not profile.incident_reaction_key.is_empty():
+		_offer(profile.incident_reaction_key)
 
 
 func on_two_wheel() -> void:

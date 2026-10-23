@@ -72,7 +72,15 @@ func free_count() -> int:
 func ambient_count() -> int:
 	var n := 0
 	for a in active:
-		if a.role != HumanAgent.Role.PASSENGER:
+		if a.role != HumanAgent.Role.PASSENGER and a.role != HumanAgent.Role.TRAFFIC_DRIVER:
+			n += 1
+	return n
+
+
+func driver_count() -> int:
+	var n := 0
+	for a in active:
+		if a.role == HumanAgent.Role.TRAFFIC_DRIVER:
 			n += 1
 	return n
 
@@ -156,7 +164,7 @@ func _evict_one_ambient() -> void:
 	var far: HumanAgent = null
 	var far_d := -1.0
 	for a in active:
-		if a.role == HumanAgent.Role.PASSENGER or a.state == HumanAgent.State.CROSSING:
+		if a.role == HumanAgent.Role.PASSENGER or a.role == HumanAgent.Role.TRAFFIC_DRIVER or a.state == HumanAgent.State.CROSSING:
 			continue
 		var d := a.global_position.distance_squared_to(player_position)
 		if d > far_d:
@@ -164,6 +172,27 @@ func _evict_one_ambient() -> void:
 			far = a
 	if far != null:
 		release(far)
+
+
+# --- Traffic drivers (v0.03A1 incidents) ---
+
+## A driver stepping out of a traffic vehicle at `door`. Uses the same pool
+## (evicting a far ambient person if needed); returns null if none is free,
+## in which case the incident stays in the vehicle (horn and shout only).
+## The incident manager owns its lifetime and must release() it.
+func acquire_driver(door: Vector3, facing: Vector3) -> HumanAgent:
+	if active.size() >= config.max_active or _free.is_empty():
+		_evict_one_ambient()
+	var agent := _acquire(HumanAgent.Role.TRAFFIC_DRIVER, network.nearest_node(door))
+	if agent == null:
+		return null
+	agent.global_position = Vector3(door.x, maxf(door.y, 0.0), door.z)
+	agent.face(facing)
+	agent.behaviour = DriverBehaviour.new()
+	agent.set_body_color(HumanAgentFactory.SHIRTS[agent.human_id % HumanAgentFactory.SHIRTS.size()].darkened(0.15))
+	agent.reset_physics_interpolation()
+	agent.set_state(HumanAgent.State.EXITING_VEHICLE)
+	return agent
 
 
 # --- Main loop ---
@@ -207,7 +236,7 @@ func _maintain_population() -> void:
 	var far_sq := config.despawn_distance * config.despawn_distance
 	for idx in range(active.size() - 1, -1, -1):
 		var a := active[idx]
-		if a.role == HumanAgent.Role.PASSENGER or a.state == HumanAgent.State.CROSSING:
+		if a.role == HumanAgent.Role.PASSENGER or a.role == HumanAgent.Role.TRAFFIC_DRIVER or a.state == HumanAgent.State.CROSSING:
 			continue
 		if a.global_position.distance_squared_to(player_position) > far_sq and not is_in_view(a.global_position):
 			if a.role == HumanAgent.Role.GROUP_MEMBER and a.home_spot != null:
@@ -226,7 +255,9 @@ func _reserved_needed() -> int:
 	for a in active:
 		if a.role == HumanAgent.Role.PASSENGER:
 			passengers += 1
-	return maxi(config.reserved_for_passengers - passengers, 0)
+	# One slot is always kept for a traffic driver getting out (v0.03A1).
+	var driver_slot := 1 if driver_count() == 0 else 0
+	return maxi(config.reserved_for_passengers - passengers, 0) + driver_slot
 
 
 func _maintain_groups() -> void:
