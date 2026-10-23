@@ -5,6 +5,9 @@ extends RefCounted
 ## begin_exit(); this object only moves the body and reports progress.
 
 const APPROACH_SPEED := 1.9  # internal m/s (≈ 6.8 km/h, a brisk walk)
+## v0.03B: seated presentation relative to SeatMarker (rig origin = feet;
+## hips rest ≈ 0.91 m above it, the seat cushion top ≈ marker + 0.05 m).
+const SEATED_OFFSET := Transform3D(Basis.IDENTITY, Vector3(0.18, 0.12 - 0.91, 0.0))
 
 var seat: Node3D
 var boarding_point: Node3D
@@ -26,6 +29,7 @@ func begin_boarding(a: HumanAgent, p_seat: Node3D, p_boarding_point: Node3D, sec
 ## Tuk left before boarding finished: wait at the pickup again.
 func cancel_boarding(a: HumanAgent) -> void:
 	a.speed_multiplier = 1.0
+	a.detach_presentation()
 	a.visible = true
 	if a.visual != null:
 		a.visual.scale = Vector3.ONE
@@ -34,6 +38,7 @@ func cancel_boarding(a: HumanAgent) -> void:
 
 func begin_exit(a: HumanAgent, from: Vector3, target: Vector3) -> void:
 	exited = false
+	a.detach_presentation()  # back to a normal walking presentation
 	a.global_position = from
 	a.visible = true
 	if a.visual != null:
@@ -67,11 +72,14 @@ func tick(a: HumanAgent, delta: float, mgr: HumanManager) -> void:
 		HumanAgent.State.BOARDING:
 			a.is_moving = false
 			var t := clampf(a.state_timer / maxf(boarding_seconds, 0.01), 0.0, 1.0)
-			if a.visual != null:
-				a.visual.scale = Vector3.ONE * lerpf(1.0, 0.6, t)
+			# v0.03B: step up into the tuk instead of shrinking away.
+			if seat != null and a.presentation_attached_to == null:
+				a.global_position = boarding_point.global_position.lerp(seat.global_position, t)
+				a.face(-seat.global_transform.basis.z)
 			if t >= 1.0:
-				a.visible = false
 				a.hide_passenger_marker()
+				# Visible for the whole ride, seated on SeatMarker.
+				a.attach_presentation(seat, SEATED_OFFSET)
 				boarded = true
 				a.set_state(HumanAgent.State.RIDING)
 		HumanAgent.State.RIDING:

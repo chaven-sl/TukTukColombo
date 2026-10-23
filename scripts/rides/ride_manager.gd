@@ -264,6 +264,8 @@ func _say(key: String) -> void:
 	current_reaction_key = key
 	current_reaction_time = 3.0
 	reaction.emit(key)
+	if offer != null and offer.passenger != null and offer.passenger.rig != null:
+		offer.passenger.rig.gesture()  # presentation only: seated arm wave
 	EventBus.passenger_reaction.emit(key, offer.profile.id if offer != null else &"")
 
 

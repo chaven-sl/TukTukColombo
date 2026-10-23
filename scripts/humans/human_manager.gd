@@ -40,6 +40,7 @@ var stats_reactions := 0
 var stats_evasions := 0
 var stats_dives := 0
 var last_tick_usec := 0
+var _camera_pos := Vector3.ZERO
 var _spawn_timer := 0.0
 var _group_spots_active: Dictionary = {}
 
@@ -106,7 +107,7 @@ func _acquire(role: HumanAgent.Role, node: int) -> HumanAgent:
 	agent.is_pooled_active = true
 	agent.walk_speed = _roll_walk_speed()
 	agent.crossing_margin = rng.randf_range(config.crossing_margin_seconds.x, config.crossing_margin_seconds.y)
-	agent.set_body_color(HumanAgentFactory.SHIRTS[rng.randi() % HumanAgentFactory.SHIRTS.size()])
+	agent.set_appearance(rng.randi() % CharacterBuilder.variant_count())
 	agent.awareness_timer = rng.randf() * config.awareness_interval
 	agent.reset_physics_interpolation()
 	active.append(agent)
@@ -157,7 +158,7 @@ func acquire_passenger(profile: PassengerProfile, spot: PedestrianSpot) -> Human
 	agent.behaviour = PassengerBehaviour.new()
 	agent.walk_speed = config.normal_speed_kmh.y / 3.6
 	agent.show_passenger_marker(profile.marker_color)
-	agent.set_body_color(profile.marker_color.darkened(0.25))
+	agent.set_appearance(profile.appearance_variant)
 	agent.set_state(HumanAgent.State.WAITING_FOR_PICKUP)
 	return agent
 
@@ -191,7 +192,7 @@ func acquire_driver(door: Vector3, facing: Vector3) -> HumanAgent:
 	agent.global_position = Vector3(door.x, maxf(door.y, 0.0), door.z)
 	agent.face(facing)
 	agent.behaviour = DriverBehaviour.new()
-	agent.set_body_color(HumanAgentFactory.SHIRTS[agent.human_id % HumanAgentFactory.SHIRTS.size()].darkened(0.15))
+	agent.set_appearance([0, 1, 2, 7][agent.human_id % 4])  # shirt/tee drivers
 	agent.reset_physics_interpolation()
 	agent.set_state(HumanAgent.State.EXITING_VEHICLE)
 	return agent
@@ -204,6 +205,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var t0 := Time.get_ticks_usec()
 	_cache_player()
+	_camera_pos = camera.global_position if camera != null else player_position
 	var i := active.size() - 1
 	while i >= 0:
 		var agent := active[i]
@@ -211,7 +213,7 @@ func _physics_process(delta: float) -> void:
 			_tick_evade(agent, delta)
 		elif agent.behaviour != null:
 			agent.behaviour.tick(agent, delta, self)
-		agent.update_visual(delta)
+		agent.update_visual(delta, _camera_pos)
 		i -= 1
 	_check_player_safety()
 	_spawn_timer -= delta
@@ -304,7 +306,18 @@ func _spawn_ambient() -> void:
 		candidates.append(n)
 	if candidates.is_empty():
 		return
-	var node := candidates[rng.randi() % candidates.size()]
+	# v0.03B: zone density — busy pavements (bus stand, market) attract more
+	# people; quiet service streets fewer. Composition, not a bigger population.
+	var total := 0.0
+	for n in candidates:
+		total += network.node_weight[n] if n < network.node_weight.size() else 1.0
+	var pick := rng.randf() * total
+	var node := candidates[candidates.size() - 1]
+	for n in candidates:
+		pick -= network.node_weight[n] if n < network.node_weight.size() else 1.0
+		if pick <= 0.0:
+			node = n
+			break
 	var w_walk := config.weight_sidewalk_walker
 	var w_cross := config.weight_crossing_pedestrian
 	var w_wait := config.weight_waiting_pedestrian

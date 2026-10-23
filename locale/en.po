@@ -364,3 +364,29 @@ msgstr "You hit a car — expect an argument!"
 
 msgid "FAIL_VEHICLE_DISABLED"
 msgstr "The tuk was disabled in a crash"
+
+# --- v0.03B Fort–Pettah place names (si/ta pending native review) ---
+
+msgid "PLACE_FORT_STATION_ENTRANCE"
+msgstr "Fort Station Entrance"
+
+msgid "PLACE_PETTAH_BUS_STAND"
+msgstr "Pettah Bus Stand"
+
+msgid "PLACE_MARKET_LANE"
+msgstr "Market Lane"
+
+msgid "PLACE_PETTAH_MARKET"
+msgstr "Pettah Market"
+
+msgid "PLACE_OLCOTT_CORNER"
+msgstr "Olcott Corner"
+
+msgid "PLACE_PETTAH_JUNCTION"
+msgstr "Pettah Junction"
+
+msgid "PLACE_STATION_ARCADE"
+msgstr "Station Arcade"
+
+msgid "PLACE_COMMERCIAL_ROW"
+msgstr "Commercial Row"

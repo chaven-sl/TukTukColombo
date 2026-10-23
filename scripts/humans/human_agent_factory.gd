@@ -1,8 +1,8 @@
 class_name HumanAgentFactory
 extends RefCounted
-## Builds pooled HumanAgents with primitive placeholder figures: capsule body,
-## sphere head, a passenger marker diamond and a small reaction indicator.
-## Meshes/materials are shared; nothing here is final art.
+## Builds pooled HumanAgents: a CharacterRig presentation (v0.03B stylised
+## character), a passenger marker diamond and a small reaction indicator.
+## Meshes/materials are shared.
 
 const SHIRTS := [Color(0.85, 0.85, 0.82), Color(0.25, 0.45, 0.7), Color(0.7, 0.3, 0.25), Color(0.35, 0.55, 0.35),
 		Color(0.9, 0.75, 0.3), Color(0.55, 0.4, 0.6), Color(0.3, 0.3, 0.32), Color(0.85, 0.55, 0.6)]
@@ -17,18 +17,10 @@ static func create_agent(id: int) -> HumanAgent:
 	var root := Node3D.new()
 	root.name = "Visual"
 	agent.add_child(root)
-	var body := MeshInstance3D.new()
-	body.mesh = _mesh("body")
-	body.position = Vector3(0, 0.66, 0)
-	body.material_override = body_material(SHIRTS[id % SHIRTS.size()])
-	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(body)
-	var head := MeshInstance3D.new()
-	head.mesh = _mesh("head")
-	head.position = Vector3(0, 1.45, 0)
-	head.material_override = body_material(Color(0.45, 0.32, 0.24))
-	head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(head)
+	# v0.03B: stylised character presentation (CharacterRig) instead of a capsule.
+	var rig := CharacterRig.new(id % CharacterBuilder.variant_count())
+	rig.name = "Rig"
+	root.add_child(rig)
 	var marker := MeshInstance3D.new()
 	marker.mesh = _mesh("marker")
 	marker.position = Vector3(0, 2.35, 0)
@@ -50,7 +42,7 @@ static func create_agent(id: int) -> HumanAgent:
 	label.no_depth_test = true
 	label.visible = false
 	root.add_child(label)
-	agent.attach_visual(root, body, marker, indicator, label)
+	agent.attach_visual(root, rig, marker, indicator, label)
 	agent.visible = false
 	return agent
 

@@ -22,3 +22,4 @@ speed_tolerance_kmh = 8.0
 expected_speed_kmh = 26.0
 collision_reaction_key = "REACT_COLLISION_CAREFUL"
 incident_reaction_key = "REACT_INCIDENT_CAREFUL"
+appearance_variant = 4

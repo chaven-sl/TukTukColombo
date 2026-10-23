@@ -1,0 +1,16 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/prototype/prototype_main.tscn" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/districts/fort_pettah/fort_pettah_track.tscn" id="2_track"]
+[ext_resource type="Script" path="res://scripts/districts/fort_pettah_dresser.gd" id="3_dresser"]
+[ext_resource type="Script" path="res://scripts/audio/district_audio.gd" id="4_audio"]
+
+[node name="FortPettahSlice" instance=ExtResource("1_main")]
+district_scene = ExtResource("2_track")
+art_style = 1
+
+[node name="DistrictArt" type="Node3D" parent="."]
+script = ExtResource("3_dresser")
+
+[node name="DistrictAudio" type="Node3D" parent="."]
+script = ExtResource("4_audio")

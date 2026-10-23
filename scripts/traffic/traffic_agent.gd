@@ -92,6 +92,12 @@ func deactivate() -> void:
 	velocity_vec = Vector3.ZERO
 
 
+## v0.03B: paint variant (index into the class body_colors).
+func set_visual_variant(color_index: int) -> void:
+	for mi in body_meshes:
+		mi.mesh = TrafficArt.mesh_for(vehicle_class, color_index)
+
+
 func set_body_material(material: Material) -> void:
 	for mi in body_meshes:
 		mi.material_override = material

@@ -28,6 +28,14 @@ extends Node3D
 @onready var props: ImpactPropManager = $ImpactProps
 @onready var notifications: NotificationPresenter = $Notifications
 
+## v0.03B: district content to play in (null = the greybox test track, kept
+## for regression tests). The district replaces TestTrack under the same node
+## name so every system and test wiring stays identical.
+@export var district_scene: PackedScene
+## Presentation style: greybox test track, or the Fort–Pettah art pass
+## (district lighting + DistrictArt dresser + audio).
+@export_enum("Greybox", "FortPettah") var art_style := 0
+
 ## LOW, MEDIUM, HIGH (indexed by GraphicsProfile.Tier).
 @export var graphics_profiles: Array[Resource] = []
 
@@ -41,6 +49,11 @@ var graphics_tier: GraphicsProfile.Tier = GraphicsProfile.Tier.HIGH
 
 
 func _ready() -> void:
+	if district_scene != null:
+		_swap_district()
+	if art_style == 1:
+		_apply_district_lighting()
+		_apply_ui_theme()
 	var perf_seconds := DevicePerfTest.requested_seconds()
 	if perf_seconds > 0.0:
 		_use_fixed_seeds()
@@ -57,6 +70,9 @@ func _ready() -> void:
 	traffic.setup(network, player, camera)
 	near_miss.setup(player, traffic)
 	pedestrians.build(network)
+	var art := get_node_or_null("DistrictArt")
+	if art != null and art.has_method("dress"):
+		art.call("dress", network, pedestrians)
 	humans.setup(pedestrians, traffic, player, camera, human_seed)
 	offers.setup(pedestrians, network, humans, offer_seed)
 	rides.setup(player, offers, humans, network, scoring)
@@ -72,10 +88,47 @@ func _ready() -> void:
 	debug_overlay.setup_world(humans, rides, pedestrians)
 	debug_overlay.setup_v003a1(guidance, incidents, mobile_controls.state)
 	debug_overlay.setup_v003a2(damage, recovery, props, humans)
+	var audio := get_node_or_null("DistrictAudio") as DistrictAudio
+	if audio != null:
+		audio.setup(player, traffic, network)
 	_setup_platform()
 	GameState.reset_session()
 	if perf_seconds > 0.0:
 		start_perf_test(perf_seconds)
+
+
+func _swap_district() -> void:
+	var old := get_node("TestTrack")
+	var idx := old.get_index()
+	remove_child(old)
+	old.free()
+	var district := district_scene.instantiate()
+	district.name = "TestTrack"
+	add_child(district)
+	move_child(district, idx)
+	network = district as RoadNetwork
+	pedestrians = district.get_node("Pedestrians") as PedestrianNetwork
+
+
+## v0.03B restrained UI pass: project typography (Noto + Sinhala/Tamil
+## fallbacks) for every Control; layout and safe-area logic are unchanged.
+func _apply_ui_theme() -> void:
+	var t := Theme.new()
+	t.default_font = UiFonts.weight(600)
+	get_window().theme = t
+
+
+## Hot tropical late morning (DistrictLighting) instead of the greybox sky.
+func _apply_district_lighting() -> void:
+	($WorldEnvironment as WorldEnvironment).environment = DistrictLighting.make_environment()
+	var sun := $Sun as DirectionalLight3D
+	var ref := DistrictLighting.make_sun()
+	sun.rotation = ref.rotation
+	sun.light_color = ref.light_color
+	sun.light_energy = ref.light_energy
+	sun.shadow_blur = ref.shadow_blur
+	sun.directional_shadow_max_distance = ref.directional_shadow_max_distance
+	ref.free()
 
 
 func _setup_platform() -> void:

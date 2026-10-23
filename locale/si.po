@@ -368,3 +368,29 @@ msgstr ""
 
 msgid "FAIL_VEHICLE_DISABLED"
 msgstr ""
+
+# --- v0.03B Fort–Pettah place names (si/ta pending native review) ---
+
+msgid "PLACE_FORT_STATION_ENTRANCE"
+msgstr "කොටුව දුම්රිය ස්ථාන දොරටුව"
+
+msgid "PLACE_PETTAH_BUS_STAND"
+msgstr "පිටකොටුව බස් නැවතුම්පොළ"
+
+msgid "PLACE_MARKET_LANE"
+msgstr ""
+
+msgid "PLACE_PETTAH_MARKET"
+msgstr "පිටකොටුව වෙළඳපොළ"
+
+msgid "PLACE_OLCOTT_CORNER"
+msgstr ""
+
+msgid "PLACE_PETTAH_JUNCTION"
+msgstr ""
+
+msgid "PLACE_STATION_ARCADE"
+msgstr ""
+
+msgid "PLACE_COMMERCIAL_ROW"
+msgstr ""

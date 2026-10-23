@@ -103,11 +103,13 @@ var boarding_target := Vector3.ZERO
 var state_timer := 0.0
 
 var visual: Node3D
-var _body: MeshInstance3D
+## v0.03B presentation: stylised character (replaces the capsule).
+var rig: CharacterRig
+## While seated in the tuk, the presentation is parented to SeatMarker.
+var presentation_attached_to: Node3D = null
 var _marker: MeshInstance3D
 var _indicator: MeshInstance3D
 var debug_label: Label3D
-var _bob_phase := 0.0
 
 
 func walk_speed_kmh() -> float:
@@ -166,15 +168,35 @@ func hide_passenger_marker() -> void:
 		_marker.visible = false
 
 
-func set_body_color(color: Color) -> void:
-	if _body != null:
-		_body.material_override = HumanAgentFactory.body_material(color)
+## Outfit variant (CharacterBuilder.VARIANTS) — appearance only.
+func set_appearance(variant: int) -> void:
+	if rig != null:
+		rig.set_variant(variant)
+
+
+## Seats the presentation in the tuk (passenger ride). Gameplay position and
+## state are untouched; only the visual node is reparented so it moves with
+## the tuk exactly.
+func attach_presentation(seat: Node3D, offset: Transform3D) -> void:
+	if visual == null or seat == null:
+		return
+	visual.reparent(seat, false)
+	visual.transform = offset
+	presentation_attached_to = seat
+
+
+func detach_presentation() -> void:
+	if visual == null or presentation_attached_to == null:
+		return
+	visual.reparent(self, false)
+	visual.transform = Transform3D.IDENTITY
+	presentation_attached_to = null
 
 
 ## Called by the factory once at pool creation.
-func attach_visual(root: Node3D, body: MeshInstance3D, marker: MeshInstance3D, indicator: MeshInstance3D, label: Label3D) -> void:
+func attach_visual(root: Node3D, p_rig: CharacterRig, marker: MeshInstance3D, indicator: MeshInstance3D, label: Label3D) -> void:
 	visual = root
-	_body = body
+	rig = p_rig
 	_marker = marker
 	_indicator = indicator
 	debug_label = label
@@ -204,17 +226,33 @@ func face(dir: Vector3) -> void:
 		basis = MathUtil.basis_from_forward(dir)
 
 
-## Cheap placeholder motion: a little bob while walking.
-func update_visual(delta: float) -> void:
+## Presentation only: maps the gameplay state to an animation mode (v0.03B).
+func update_visual(delta: float, camera_pos: Vector3 = Vector3.ZERO) -> void:
 	if visual == null:
 		return
-	if is_moving:
-		_bob_phase += delta * walk_speed * speed_multiplier * 7.0
-		visual.position.y = absf(sin(_bob_phase)) * 0.05
-	else:
-		visual.position.y = move_toward(visual.position.y, 0.0, delta)
 	if _marker != null and _marker.visible:
 		_marker.rotation.y += delta * 2.0
+	if rig == null:
+		return
+	var pace := walk_speed * speed_multiplier
+	rig.move_speed = pace
+	match state:
+		State.RIDING:
+			rig.mode = CharacterRig.Mode.SEATED
+		State.BOARDING:
+			rig.mode = CharacterRig.Mode.BOARD if state_timer < 0.4 else CharacterRig.Mode.SEATED
+		State.EVADING:
+			rig.mode = (CharacterRig.Mode.DIVE if evade_dive else CharacterRig.Mode.EVADE) if is_moving else CharacterRig.Mode.WAIT
+		State.ARGUING:
+			rig.mode = CharacterRig.Mode.ARGUE
+		State.WAITING_FOR_PICKUP, State.WAITING_TO_CROSS:
+			rig.mode = CharacterRig.Mode.WALK if is_moving else CharacterRig.Mode.WAIT
+		_:
+			if is_moving:
+				rig.mode = CharacterRig.Mode.RUN if pace > 3.2 else (CharacterRig.Mode.HURRY if pace > 1.9 else CharacterRig.Mode.WALK)
+			else:
+				rig.mode = CharacterRig.Mode.IDLE
+	rig.animate(delta, camera_pos)
 
 
 func reset_for_pool() -> void:
@@ -233,5 +271,8 @@ func reset_for_pool() -> void:
 	is_moving = false
 	set_reaction(Reaction.NONE)
 	hide_passenger_marker()
+	detach_presentation()
 	if visual != null:
 		visual.scale = Vector3.ONE
+		visual.position = Vector3.ZERO
+		visual.rotation = Vector3.ZERO

@@ -1,4 +1,4 @@
-[gd_scene load_steps=52 format=3]
+[gd_scene load_steps=53 format=3]
 
 [ext_resource type="Script" path="res://scenes/prototype/prototype_main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/road/test_track.tscn" id="2_track"]
@@ -13,6 +13,7 @@
 [ext_resource type="Resource" path="res://resources/traffic/bus.tres" id="11_bus"]
 [ext_resource type="Resource" path="res://resources/traffic/motorcycle.tres" id="12_moto"]
 [ext_resource type="Resource" path="res://resources/traffic/tuk.tres" id="13_tuk"]
+[ext_resource type="Resource" path="res://resources/traffic/van.tres" id="49_van"]
 [ext_resource type="Script" path="res://scripts/scoring/near_miss_detector.gd" id="14_nm"]
 [ext_resource type="Resource" path="res://resources/scoring/scoring_config.tres" id="15_score"]
 [ext_resource type="Script" path="res://scripts/scoring/scoring_system.gd" id="16_scoring"]
@@ -88,7 +89,7 @@ config = ExtResource("5_camcfg")
 script = ExtResource("6_traffic")
 config = ExtResource("7_tcfg")
 budget_config = ExtResource("8_budget")
-vehicle_classes = Array[ExtResource("9_cls")]([ExtResource("10_car"), ExtResource("11_bus"), ExtResource("12_moto"), ExtResource("13_tuk")])
+vehicle_classes = Array[ExtResource("9_cls")]([ExtResource("10_car"), ExtResource("11_bus"), ExtResource("12_moto"), ExtResource("13_tuk"), ExtResource("49_van")])
 
 [node name="NearMissDetector" type="Node" parent="."]
 script = ExtResource("14_nm")

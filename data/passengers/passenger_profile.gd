@@ -41,6 +41,9 @@ extends Resource
 ## Must be positive for every profile: nobody enjoys endangering people.
 @export var pedestrian_danger_sensitivity := 1.0
 
+## v0.03B presentation: CharacterBuilder outfit variant for this passenger.
+@export var appearance_variant := 0
+
 @export_group("Reactions (v0.03A1)")
 ## Line when the tuk hits traffic (still always a negative event).
 @export var collision_reaction_key := "REACT_COLLISION"

@@ -2,7 +2,7 @@ class_name TrafficVehicleClass
 extends Resource
 ## One logical traffic vehicle type. Behaviour and placeholder look are data.
 
-enum Kind { CAR, BUS, MOTORCYCLE, TUK }
+enum Kind { CAR, BUS, MOTORCYCLE, TUK, VAN }
 
 @export var id: StringName = &"car"
 @export var kind: Kind = Kind.CAR
@@ -28,6 +28,10 @@ enum Kind { CAR, BUS, MOTORCYCLE, TUK }
 @export var min_gap := 2.5
 ## Reserved for lane changing (not implemented in v0.01).
 @export_range(0.0, 1.0) var lane_change_tendency := 0.0
+
+## v0.03B zone mix: heavy vehicles (buses) spawn less on lanes whose
+## RoadSegment has a low bus_spawn_scale (e.g. the narrow market street).
+@export var is_heavy := false
 
 @export_group("Population")
 @export var spawn_weight := 1.0
