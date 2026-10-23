@@ -1,6 +1,15 @@
-# Fort–Pettah Gateway — Art & Performance Budget (v0.03B)
+# Fort–Pettah Gateway — Art & Performance Budget (v0.03B1)
 
-Reference device: a mid-range Android phone with a Mali-G610 MC4 GPU at 1602×720 internal resolution (medium tier).
+Reference device: a mid-range Android phone with a Mali-G610 MC4 GPU and a 2412×1084 panel.
+
+Medium tier renders 3D at **render_scale 0.75**, which is 1809×813 on this phone. The UI stays at native resolution.
+
+**Why (v0.03B1 device profiling):**
+- The game is GPU-bound and pixel-bound at native resolution.
+- More triangles barely cost anything: hiding all district art cut primitives from 73k to 25k but saved only 0.3 ms of GPU time.
+- Per-pixel work is what costs.
+
+**Rule:** spend on geometry and silhouettes, not on per-pixel effects (transparency, extra texture samples, post-processing).
 
 ## Frame targets
 
@@ -17,15 +26,15 @@ Measured results are in `docs/PROTOTYPE_V003B_REPORT.md`.
 
 | Asset | Budget | Built |
 |---|---|---|
-| Hero tuk (body, wheels, handlebar, lights) | ≤ 25–30k | about 1.5k plus driver (about 0.6k) |
-| Bus (public red or private) | ≤ 10k | about 0.8k |
-| Car, van | ≤ 6–8k | about 0.5k |
-| Traffic tuk (with driver silhouette) | ≤ 6k | about 0.6k |
-| Motorcycle with rider | ≤ 4k | about 0.45k |
-| Person (CharacterRig) | 2–4k | about 0.5–0.65k |
-| Whole dressed district | — | about 140k in 125 batched meshes |
-
-The headroom is deliberate. It is the budget for a later hand-modelled pass if the owner wants more fidelity.
+| Hero tuk v2 (body, fork, wheels, handlebar, lights) | ≤ 25–30k | about 7.8k, plus the driver (about 2.2k) |
+| Bus (public red or private) | ≤ 10k | about 3.7k |
+| Car | ≤ 6–8k | about 3.1k |
+| Van | ≤ 6–8k | about 2.7k |
+| Traffic tuk (with driver) | ≤ 6k | about 2.4k |
+| Motorcycle with rider | ≤ 4k | about 1.8k |
+| Person (CharacterRig, animated) | 2–4k | about 2.2k |
+| Background crowd figure (static, baked) | — | about 700 |
+| Whole dressed district | — | about 440k in 144 batched meshes (Detail layer only drawn within 55 m) |
 
 ## Texture budgets
 
@@ -37,6 +46,12 @@ The headroom is deliberate. It is the budget for a later hand-modelled pass if t
 - **Audio:** 23 mono 22.05 kHz WAVs totalling 2.3 MB.
 
 ## Material set (`scripts/art/art_materials.gd`)
+
+v0.03B1 adds:
+- **Vehicles:** chrome, rubber, vinyl, glass_clear (the only transparent material, used for the hero windscreen).
+- **Clutter:** wood and cardboard.
+- **Paint:** vehicle paint is glossier.
+- **Chrome:** stays semi-metallic and bright, because there are no sky reflections on mobile.
 
 | Material | Use |
 |---|---|
@@ -69,7 +84,7 @@ There are 11 materials in total, all shared.
 | Layer | Visible to | Shadows |
 |---|---|---|
 | Arch (façades, station, structure) | 170 m | yes |
-| Detail (clutter, props, wires, stalls) | 55 m | no |
+| Detail (clutter, props, wires, stalls, background crowd) | 55 m | no |
 | Signs | about 100 m | no |
 | Skyline / boundary façades (far chunks) | 700 m | no |
 | Parked vehicles | 110 m | no |

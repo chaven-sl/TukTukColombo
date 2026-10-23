@@ -40,6 +40,13 @@ Source of truth: `scripts/art/art_palette.gd`. Use `ArtPalette.vary()` and `weat
 | Nature | tropical leaf green, used sparingly |
 
 Rule: **colourful, never candy-coloured.**
+
+**v0.03B1 hierarchy:**
+- Most wall paints are neutral and sun-faded: off-white, cream, stone, concrete, faded ochre.
+- Only a few walls carry real colour.
+- The road is the dark, stable anchor.
+- Awnings, signs, umbrellas, buses and tuks carry the saturation.
+- The hero tuk has the highest visual priority.
 - Saturated colour belongs to small things: awnings, umbrellas, signs and clothing.
 - Big surfaces stay faded.
 

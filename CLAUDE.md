@@ -1,6 +1,6 @@
 # TukTuk Colombo — working instructions
 
-Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03B — Fort–Pettah Gateway** (first production-quality art + audio vertical slice; awaiting owner visual/playtest approval). The game boots into `scenes/districts/fort_pettah/fort_pettah_slice.tscn`; the greybox `prototype_main.tscn` stays for regression tests. v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
+Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03B1 — performance recovery + visual quality** on the Fort–Pettah Gateway slice (awaiting owner visual/playtest approval; `docs/PROTOTYPE_V003B1_REPORT.md`). The game boots into `scenes/districts/fort_pettah/fort_pettah_slice.tscn`; the greybox `prototype_main.tscn` stays for regression tests. v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
 
 ## Repository identity
 
@@ -47,7 +47,7 @@ python3 tools/audiogen/generate_audio.py
 # Android (debug only; see docs/android_setup.md)
 tools/android_preflight.sh && tools/export_android_debug.sh   # → builds/android/tuktukcolombo-debug.apk (git-ignored)
 tools/install_android_debug.sh                                # needs an adb device; never uninstalls
-tools/android_perf_test.sh 300                                # 5-min deterministic device perf test
+tools/android_perf_test.sh 300 [opts]                         # deterministic device perf test; opts = A/B switches, e.g. audio_off,shadows_off,scale=0.75 (keep the phone UNLOCKED)
 # Touch on desktop: -- --force-touch-controls (or project setting tuktuk/dev/force_touch_controls)
 # Simulated cutout / safe area (logical units): -- --simulate-safe-area=L,T,R,B
 # Real window: FPS + screenshots to user://test_results/screens
@@ -77,6 +77,7 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 - **Android signing.** Debug keystore only (per-machine editor setting). Never create/commit a release keystore or store signing config without explicit approval. Package `com.chavensl.tuktukcolombo` is provisional.
 - **Art follows physics (v0.03B).** Collision and visual geometry are separate: district art is merged visual chunks (`DistrictChunks`) + simple box proxies (`BuildingProxies`/`PropProxies`/`ForecourtProxies`); vehicles are physics root + `Visual/HeroArt` / `Body`; people are `HumanAgent` + `CharacterRig`. Art never adds colliders or changes mass/CoM. All art is procedural GDScript (no downloads, no Blender); rules in `docs/art_bible.md`, budgets in `docs/fort_pettah_art_budget.md`.
 - **Audio is presentation (v0.03B).** `DistrictAudio` reads telemetry + EventBus hooks only; buses Vehicle/Traffic/Ambience/UI (`default_bus_layout.tres`); fixed voice pools, range limits, cooldowns; sounds are original procedural WAVs from `tools/audiogen/`. No music.
+- **Mobile GPU budget (v0.03B1).** The reference Mali-G610 is pixel-bound: medium tier renders 3D at 0.67 + FSR. Spend art budget on geometry/silhouettes, not per-pixel effects. Measure with `PerfSections` + render GPU timings (`TIME_PROCESS` includes the vsync wait — never quote it as CPU work). Docs must quote the real `.tres` values (unit-tested).
 - **Debuggable.** F1 overlay / F2 traffic / F3 vehicle; debug code lives in `scripts/debug/` and is removable.
 
 ## Directory rules
@@ -126,7 +127,7 @@ All speeds presented to people — docs, reports, test output, debug HUD, tuning
 
 ## Current phase & next step
 
-Delivered: v0.01, v0.01a, v0.02, v0.03A, v0.03A1, v0.03A2, v0.03B Fort–Pettah Gateway (`docs/PROTOTYPE_V003B_REPORT.md`). **Next: owner installs the v0.03B debug APK, judges the look/sound and answers the 10 questions in that report.** Do not start economy, garage, progression, monetisation, police, weather, day/night, map expansion or v0.04 without approval.
+Delivered: v0.01, v0.01a, v0.02, v0.03A, v0.03A1, v0.03A2, v0.03B Fort–Pettah Gateway, v0.03B1 performance + visual quality (`docs/PROTOTYPE_V003B1_REPORT.md`). **Next: owner installs the debug APK, judges the look and answers the 10 questions in the v0.03B1 report.** Do not start economy, garage, progression, monetisation, police, weather, day/night, map expansion or v0.04 without approval.
 
 ## Known technical debt
 

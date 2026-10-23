@@ -30,6 +30,10 @@ Results also go to `user://test_results/*.json` (macOS: `~/Library/Application S
 
 Windowed runs (`godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]`) add FPS, CPU-time and draw-call figures and save screenshots.
 
+## After v0.03B1 (2026-10-23, Apple M2)
+
+All **18 stages** pass. Unit: **98 tests / 960 assertions** (new `test_graphics_runtime`: the docs must quote the `.tres` values). The Fort–Pettah slice test has 60 checks (new: hero v2 budget and materials, the fork steers, the background crowd stays inside buildings and off lanes, blade signs, compact HUD cards). The HUD safe-area matrix fills the new structured cards. Device: `tools/android_perf_test.sh 180 [opts]` reports render CPU/GPU, primitives, video memory and per-system `PerfSections` timings; see `docs/PROTOTYPE_V003B1_REPORT.md`.
+
 ## Latest results (2026-10-23, Apple M2, after v0.03A2)
 
 All **17 stages** pass in one run — unit **94 tests / 944 assertions**; new: HUD safe-area matrix (2,793 checks), world containment + damage + recovery + props, pavement safety (evasion), off-road soak (`--offroad`: pavement charges, prop strikes, building crashes, hard wall hits every ~14 s). Soaks are seeded (traffic, people, offers, incidents). Windowed screenshots: `world_overview_screens.tscn` (top-down, pavement, crash), `gps_incident_screens.tscn -- --simulate-safe-area=56,0,0,0`. See `docs/PROTOTYPE_V003A2_REPORT.md`.
