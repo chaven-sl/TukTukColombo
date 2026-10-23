@@ -2,6 +2,15 @@
 
 `RideManager` (`scripts/rides/ride_manager.gd`) is a focused node. It is not part of GameState, and there is no giant manager.
 
+## Hire offer (v0.03A1)
+
+The nearest waiting passenger within `RideConfig.hire_offer_radius` (220 m) is
+offered as a hire (card: type, pickup, destination, trip, priority). ACCEPT
+HIRE → GPS to the pickup → boarding → GPS to the destination (see
+`gps_route_guidance.md`). The v0.02 12 m `accept_radius` is kept only as
+reference. Collision/incident passenger lines are profile data
+(`collision_reaction_key`, `incident_reaction_key`; see `traffic_incidents.md`).
+
 ## Lifecycle
 
 ```

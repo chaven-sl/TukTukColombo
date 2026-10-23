@@ -1,6 +1,6 @@
 # TukTuk Colombo — working instructions
 
-Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03A — Android + touch + production readiness** (complete, awaiting owner Android playtest). v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
+Original stylised Sri Lankan tuk-tuk driving game. Current phase: **Prototype v0.03A1 — mobile UX + GPS + traffic altercations** (complete, awaiting owner Android playtest). v0.01a vehicle handling is the approved **MVP HANDLING BASELINE**: do not retune steering, CoM, grip, suspension, rollover, roll assist, engine or brakes unless a reproducible defect requires it — document and report first. Handling philosophy: **high agility + high consequence** — the tuk always turns when asked; overcommitting at speed is punished by roll, wheel lift and rollover, never by removing steering authority. Objective of v0.01: *make driving a three-wheeler through moving traffic genuinely enjoyable for five minutes.* Everything else is infrastructure.
 
 ## Repository identity
 
@@ -34,7 +34,8 @@ tools/run_tests.sh
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/vehicle_dynamics_test.tscn   # swerve/rollover/recovery
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/scoring_scenarios_test.tscn
 /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/human_world_test.tscn   # people + rides
-/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction]
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/gps_incident_test.tscn   # hire UX, GPS, incidents
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --fixed-fps 60 res://tests/scenarios/traffic_soak_test.tscn -- --duration=360 [--park-near-junction | --incidents]
 # Android (debug only; see docs/android_setup.md)
 tools/android_preflight.sh && tools/export_android_debug.sh   # → builds/android/tuktukcolombo-debug.apk (git-ignored)
 tools/install_android_debug.sh                                # needs an adb device; never uninstalls
@@ -50,7 +51,7 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 
 - **Composition over monoliths.** No GameManager. `scenes/prototype/prototype_main.gd` is the composition root: it wires systems explicitly; systems never look each other up by arbitrary scene path.
 - **Data-driven.** Tunables live in Resources: class scripts in `data/`, instances (`.tres`) in `resources/`. Mark prototype values `PROTOTYPE BASELINE`.
-- **Signals.** Local signals between neighbours; `EventBus` only for cross-system gameplay events (`skill_event`, `collision_event`, `score_awarded`, `combo_changed`, `performance_budget_changed`, `player_reset`, `horn_sounded`).
+- **Signals.** Local signals between neighbours; `EventBus` only for cross-system gameplay events (`skill_event`, `collision_event`, `score_awarded`, `combo_changed`, `performance_budget_changed`, `player_reset`, `horn_sounded`, pedestrian/ride events, and v0.03A1 incident hooks `traffic_incident_started/resolved`, `traffic_horn`, `driver_shout`).
 - **Minimal autoloads:** `EventBus`, `SaveManager`, `PlatformServices`, `GameState` (in that order). Nothing else is global.
 - **Detection ≠ scoring ≠ UI.** `NearMissDetector` emits events → `ScoringSystem`/`ComboManager` decide value → HUD presents.
 - **People are never a reward.** Pedestrian incidents use their own signals (`pedestrian_danger`, `pedestrian_impact`); they must never reach score, combo, fare or passenger excitement. The near-miss detector only reads `TrafficAgent`s.
@@ -58,6 +59,8 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 - **One satisfaction model.** Passengers differ only through `PassengerProfile` data; never add per-passenger scoring code.
 - **Pure logic is testable.** Rules live in RefCounted classes (`ComboManager`, `AdaptiveTrafficBudget`, `SaveStore`, `OrientedRect`, `VehicleTuning` helpers) with nodes as thin wrappers.
 - **Platform isolation.** Gameplay never calls SDKs; it calls `PlatformServices` (no-op in v0.01).
+- **Collisions are never a reward.** `TrafficIncidentManager` turns traffic collisions into social reactions (horn, shout, driver gets out and argues) — never score/combo/fare; no violence, no chase. One altercation at a time; drivers are pooled `HumanAgent`s (role `TRAFFIC_DRIVER`).
+- **GPS reuses the lane graph.** `RoadNetwork.route_path()` → `RoutePlan` → `RouteGuidance`; never search routes every frame (accept / boarding / reset / rate-limited off-route only).
 - **One human input source.** Keyboard (`PlayerInputSource`) or touch (`TouchInputSource`), chosen once by `InputMode`; both only write `VehicleInputState`. Touch taps reuse existing paths (horn event, `RideManager.request_accept()`, `GameState.set_paused()`). Android Back pauses/resumes and never quits.
 - **Android signing.** Debug keystore only (per-machine editor setting). Never create/commit a release keystore or store signing config without explicit approval. Package `com.chavensl.tuktukcolombo` is provisional.
 - **Debuggable.** F1 overlay / F2 traffic / F3 vehicle; debug code lives in `scripts/debug/` and is removable.
@@ -70,7 +73,7 @@ Scripts that reference autoloads (EventBus, GameState…) cannot be loaded in `-
 | `data/<domain>/` | Resource **class** scripts (schemas) |
 | `resources/<domain>/` | Resource **instances** (`.tres`) |
 | `scenes/<domain>/` | scenes; a scene's root script may sit beside it |
-| `scripts/<domain>/` | runtime code: `player camera traffic road humans rides scoring performance ui input platform debug utilities` |
+| `scripts/<domain>/` | runtime code: `player camera traffic road humans rides navigation scoring performance ui input platform debug utilities` |
 | `locale/` | `en.po si.po ta.po` |
 | `tests/unit/` | headless logic tests (`test_*.gd`, extend `tests/test_case.gd`) |
 | `tests/scenarios/` | scene-based simulation tests (autopilot lives in `scripts/debug/` so the device perf test can use it) |
@@ -109,7 +112,7 @@ All speeds presented to people — docs, reports, test output, debug HUD, tuning
 
 ## Current phase & next step
 
-Delivered: v0.01, v0.01a, v0.02 (approved), v0.03A (`docs/PROTOTYPE_V003A_REPORT.md`). **Next: owner installs the debug APK on an Android phone and answers the 12 questions in the v0.03A report; real-device perf baseline is pending.** Do not start v0.03B (art, audio, garage, upgrades, more passengers, weather, map expansion) without that review.
+Delivered: v0.01, v0.01a, v0.02, v0.03A (device baseline passed ~59 FPS), v0.03A1 (`docs/PROTOTYPE_V003A1_REPORT.md`). **Next: owner installs the v0.03A1 debug APK and answers the 10 questions in that report.** Do not start v0.03B (art, audio, garage, upgrades, economy, police/fines, more passengers, weather, map expansion) without approval.
 
 ## Known technical debt
 
@@ -117,7 +120,9 @@ Delivered: v0.01, v0.01a, v0.02 (approved), v0.03A (`docs/PROTOTYPE_V003A_REPORT
 - Hand-written `.tscn/.tres` without UIDs (Godot adds them when re-saved in the editor).
 - Traffic: no lane changes; treats the player as an obstacle only in a straight line ahead; kinematic traffic can shove the player; yields only to occupied crossings.
 - Pedestrians: placeholder figures, no animation; uneven density (no sidewalks on the loop's east side). Pickups now face legal directions, so some quoted routes are long laps (e.g. careful passenger 0.9–1.2 km).
-- Android: debug APK only (80 MB, mostly the debug engine library); no device tested yet; graphics tier not auto-selected per device; no haptics; touch steering unvalidated by a human thumb.
+- Android: debug APK only (80 MB, mostly the debug engine library); graphics tier not auto-selected per device; no haptics. v0.03A1 steering/GPS/incidents not yet judged on a phone.
+- Incidents: drivers are placeholder capsules (no exit-door/argue animation, no audio); the chase camera can hide a driver in front of the tuk; door side is fixed to the vehicle's right.
+- GPS: turns only at junction connectors; the test track has few junctions, so most instructions are PICKUP/DESTINATION distances; ribbon is prototype styling.
 - Near-miss footprint is the 1.3 × 2.6 m bounding box while physics uses a tapered hull (nose passes scored slightly conservatively).
 - Roll-state signal (`TukController.roll_state_changed`) has no player-facing feedback yet.
 - Sinhala/Tamil: no shipped font with those glyphs; strings are placeholders needing native review.

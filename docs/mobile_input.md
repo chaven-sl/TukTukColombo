@@ -1,4 +1,4 @@
-# Mobile input (v0.03A)
+# Mobile input (v0.03A, steering revised in v0.03A1)
 
 ```
 MobileControls (CanvasLayer, raw ScreenTouch/Drag)
@@ -19,11 +19,11 @@ tried with a mouse on desktop (one finger only).
 
 | Control | Where | Behaviour |
 |---|---|---|
-| Steering pad | bottom-left (left thumb) | analog −1…+1 from horizontal thumb offset to the pad centre; the finger that lands first owns steering until it lifts, even if it slides off the pad |
+| Steering pad | bottom-left (left thumb) | **floating origin** (v0.03A1): touch-down anywhere on the pad = exactly 0; analog −1…+1 from the horizontal offset to where the thumb landed; the finger that lands first owns steering until it lifts, even if it slides off the pad |
 | GO (accelerator) | bottom-right | hold = full throttle |
 | BRAKE / reverse | inboard of GO | hold = brake, then reverse (same as keyboard) |
 | HORN | above GO | tap → `EventBus.horn_sounded` (same as H) |
-| ACCEPT RIDE | right, above HORN | shown only while a passenger offer is in range; tap → `RideManager.request_accept()` (same as E) |
+| ACCEPT HIRE | right, above HORN | shown only while a hire is offered (card top-left names it); tap → `RideManager.request_accept()` (same as E) |
 | II (pause) | top-left, away from thumbs | tap → pause |
 
 Multitouch: every finger is tracked by index; steer + GO and steer + BRAKE
@@ -31,18 +31,34 @@ work together. Taps on horn/accept/pause never disturb held controls.
 
 ## Steering mapping (`TouchSteeringMapper`, tunables in `resources/input/touch_controls.tres`)
 
-`n = clamp(offset / (half_width × full_lock_fraction), −1, 1)`;
-`|n| < dead_zone → 0`; otherwise `sign · ((|n| − dz)/(1 − dz))^exponent`.
+**v0.03A1 fix — owner playtest "steering drifts slightly right".** v0.03A
+mapped the thumb's absolute x against the fixed pad centre, so a thumb resting
+a few millimetres right of the visual centre steered right. Now:
+
+```
+touch-down        → origin = thumb x, steer = 0.0 exactly
+drag              → offset = x − origin
+                    n = clamp(offset / steer_full_lock_travel, −1, 1)
+                    |n| ≤ dead_zone → 0, else sign · ((|n| − dz)/(1 − dz))^exponent
+release / cancel  → steer = 0.0, offset = 0
+```
 
 | Tunable | Value | Why |
 |---|---|---|
-| `steer_dead_zone` | 0.08 | resting thumb jitter doesn't steer |
-| `steer_exponent` | 1.15 | mostly linear, mild centre softening for lane corrections |
-| `full_lock_fraction` | 0.85 | full lock before the pad edge, so quick countersteer isn't limited by thumb travel |
+| `steer_full_lock_travel` | 120 logical units (≈ 1/6 of the screen height) | small movement = fine correction, ~half travel = urban steering (~0.45), full travel = full lock |
+| `steer_dead_zone` | 0.10 of the travel (12 units) | thumb jitter while resting never steers |
+| `steer_exponent` | 1.15 | mostly linear, mild centre softening |
 
-No smoothing is added in the input layer: release snaps the *input* to 0 and
-reversal is instantaneous, exactly like the keyboard. The return of the
-wheels is the vehicle's existing steering rate (locked MVP handling baseline).
+Travel is measured from the origin, not limited by the pad edges, so it is
+always symmetric left/right even when the thumb lands near an edge. The
+visual travel guide + knob are drawn around the origin (nudged inside the pad
+near its edges). No smoothing is added in the input layer: reversal is
+instantaneous and release snaps the *input* to 0, exactly like the keyboard;
+the wheels return at the vehicle's existing steering rate (locked baseline).
+
+**Real-device check:** place your thumb naturally on the steering control and
+hold it still for 10 seconds — the tuk should track straight unless the road
+or physics genuinely disturbs it.
 
 ## Lifecycle
 

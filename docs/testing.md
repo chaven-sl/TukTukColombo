@@ -19,6 +19,8 @@ Set `GODOT=/path/to/Godot` if the binary is not at `/Applications/Godot.app/Cont
 | Human world + passengers (v0.02) | `… res://tests/scenarios/human_world_test.tscn` | sidewalk walking, crossing wait/proceed, reaction to the tuk, people never score CLOSE CALL/TIGHT GAP, pedestrian impact (event, combo reset, removal), full ride loop for all three passengers (offer, accept, boarding, telemetry, completion + fare, exit, pool return, offer respawn), drive-by pickup refusal, impact fails an active ride |
 | Input smoke | `… res://tests/scenarios/input_smoke_test.tscn` | real prototype scene driven through InputMap actions: W/A/D/S, reverse, R, H, F1/F2/F3, Esc pause/resume |
 | Mobile touch + lifecycle (v0.03A) | `… res://tests/scenarios/mobile_touch_test.tscn` (and `-- --force-touch-controls`) | desktop default = keyboard, touch HUD hidden; one input source at a time; injected multitouch steer+GO / steer+BRAKE moves the real tuk; quick reversal; horn/pause/accept taps; Android Back pause↔resume, never quits; focus loss pauses, cancels touches, no auto-resume, ride untouched; route-direction regression for every offer × destination |
+| GPS + hire + incidents (v0.03A1) | `… res://tests/scenarios/gps_incident_test.tscn` | hire offered from a distance, exactly one selected, selected beacon/marker dominant, others muted; pickup route on the lane graph (0.00 m offset), direction-legal, starts at tuk/ends at passenger; off-route detection + rate-limited recalculation; STOP TO PICK UP; boarding clears, destination route appears automatically; completion and cancellation clear; world collision ignored; LIGHT/MODERATE/MAJOR tiers; other_agent_id resolution; driver exits → approaches → argues at talking distance → returns → pool; one altercation max; vehicle held then resumes; player drives away → no chase; no score; pool bounded |
+| Traffic + incidents soak | `… traffic_soak_test.tscn -- --duration=240 --incidents` | a scripted collision every 7 s (LIGHT/MODERATE/MAJOR cycle) on top of the normal soak: ≤ 1 driver out, ≤ 1 vehicle held, no hold beyond the cap, no driver leak, no runaway incidents, plus every normal soak check |
 | Traffic soak (drive) | `… traffic_soak_test.tscn -- --duration=360` | autopilot laps through traffic: pool/node leaks, bounded population, no visible spawns, no teleports, no traffic overlap, junction service, bounded signal waits, speed variety, natural close calls, collision rate |
 | Traffic soak (junction) | `… -- --duration=360 --park-near-junction` | player parked beside the junction: throughput, no stalls/deadlock |
 
@@ -26,7 +28,11 @@ Results also go to `user://test_results/*.json` (macOS: `~/Library/Application S
 
 Windowed runs (`godot --path . res://tests/scenarios/traffic_soak_test.tscn -- --duration=60 --screenshots [--perf]`) add FPS, CPU-time and draw-call figures and save screenshots.
 
-## Latest results (2026-10-22, Apple M2, after v0.03A)
+## Latest results (2026-10-23, Apple M2, after v0.03A1)
+
+All 13 stages pass — unit **90 tests / 916 assertions** (new: floating-origin steering incl. 10 s jitter test, RoutePlan geometry/turns/instructions, incident tiers, temperaments, severity-dominates rules, profile collision lines); GPS + incidents scenario PASS; incidents soak PASS. Windowed extras: `tests/scenarios/gps_incident_screens.tscn` (hire card, GPS, altercation screenshots). See `docs/PROTOTYPE_V003A1_REPORT.md`.
+
+## After v0.03A (2026-10-22, Apple M2)
 
 All 10 stages pass — unit **80 tests / 765 assertions** (new: touch mapper + multitouch state, layout on 5 aspect ratios × 4 safe areas, export preset, mobile settings, graphics profiles, mood); mobile touch both modes PASS; v0.01–v0.02 stages unchanged and passing. Windowed-only extras: `tests/scenarios/touch_layout_screens.tscn` with `--resolution WxH` saves forced-touch screenshots; `godot --path . -- --perf-test=20` runs the device perf test on desktop. See `docs/PROTOTYPE_V003A_REPORT.md`.
 

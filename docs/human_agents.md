@@ -12,6 +12,14 @@ HumanAgent (Node3D, pooled, no physics body)
 
 Future roles (vendor, police, bus passenger, mission NPC) slot in as new `Role` values with their own behaviour object. None are implemented.
 
+## Traffic drivers (v0.03A1)
+
+Role `TRAFFIC_DRIVER` + `DriverBehaviour`; states `EXITING_VEHICLE →
+APPROACHING_PLAYER → ARGUING → RETURNING_TO_VEHICLE` (then back to the pool).
+Only in the world during a traffic altercation; owned by
+`TrafficIncidentManager`; never despawned by the ambient population logic;
+one pool slot reserved. See `traffic_incidents.md`.
+
 ## Why not a physics body
 
 People are a gameplay concept, not physics obstacles. A `CharacterBody3D` or `RigidBody3D` would let the player's rigid tuk be shoved by, or shove, people in absurd ways, and would cost broadphase time. Contact with the tuk is decided by `HumanManager` with an allocation-free footprint test (`OrientedRect.point_distance`, person radius 0.28 m) and handled as the `PEDESTRIAN_IMPACT` gameplay event. Traffic never collides with people either: it yields at crossings through `CrossingZone`.

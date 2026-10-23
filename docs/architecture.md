@@ -1,4 +1,4 @@
-# Architecture (v0.4 — Prototype v0.03A)
+# Architecture (v0.4.1 — Prototype v0.03A1)
 
 ## System map
 
@@ -79,6 +79,13 @@ Skill events already carry clearance, relative speed, side and `is_oncoming`, wh
 - **Platform:** `GraphicsProfile` Resources (LOW/MEDIUM/HIGH) applied by the composition root. `SessionPerformanceMonitor` + `DevicePerfTest` (autopilot, fixed seeds) for device baselines. `AutopilotDriver` now lives in `scripts/debug/` so builds can run the perf test.
 - **Routes:** `RoadNetwork.route(from, to, heading)` is direction-aware (start lanes follow the heading or kerb lane; destination snaps to its kerb lane), falling back to the undirected search only when no legal route exists.
 - **Ride HUD:** in-ride mood is qualitative (`PassengerMood`: HAPPY / IMPATIENT / NERVOUS / EXCITED / BORED / UPSET) from projected subscores; the numeric rating stays on the result card only.
+
+## v0.03A1 additions
+
+- **Touch steering** is relative to a floating origin captured at touch-down (`TouchControlState.steer_origin_x`); see `mobile_input.md`.
+- **Navigation** (`scripts/navigation/`): `RoadNetwork.route_path()` → `RoutePlan` (pure) → `RouteGuidance` (follows RideManager states, cached plan, rate-limited off-route recalculation) → `RouteRibbon` + `RideHud`. See `gps_route_guidance.md`.
+- **Hire UX:** offered hire = nearest waiting passenger within `hire_offer_radius`; `RideHud` shows the card, the selected-passenger marker and mutes other offers.
+- **Traffic incidents:** `TrafficIncidentManager` (EventBus.collision_event → `IncidentRules` tiers × `DriverTemperament` data → altercation state machine) holds the hit `TrafficAgent` (`incident_hold`) and borrows a pooled `HumanAgent` with `DriverBehaviour`. Presentation/audio only via EventBus hooks (`IncidentBubbles` placeholder). See `traffic_incidents.md`.
 
 ## Road construction
 
