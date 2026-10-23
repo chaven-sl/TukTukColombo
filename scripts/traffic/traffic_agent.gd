@@ -291,7 +291,7 @@ func _advance(ds: float, ctx: TrafficManager) -> bool:
 		lane = next_lane
 		s = overflow
 		lane.agents.append(self)
-		next_lane = ctx.choose_next_lane(lane)
+		next_lane = ctx.choose_next_lane(lane, vehicle_class.is_heavy)
 	if next_lane == null and lane.length - s < half_length + 1.0:
 		at_sink = true
 	return true

@@ -168,7 +168,9 @@ func can_despawn_silently(agent: TrafficAgent) -> bool:
 
 # --- Routing ---
 
-func choose_next_lane(lane: Lane) -> Lane:
+## `heavy` (buses): each option is weighted by its exit lane's zone
+## bus_spawn_scale, so buses keep to arterials and avoid the market core.
+func choose_next_lane(lane: Lane, heavy := false) -> Lane:
 	var succ := lane.successors
 	if succ.is_empty():
 		return null
@@ -176,24 +178,28 @@ func choose_next_lane(lane: Lane) -> Lane:
 		return succ[0]
 	var total := 0.0
 	for l in succ:
-		total += _route_weight(l)
+		total += _route_weight(l, heavy)
 	var r := rng.randf() * total
 	for l in succ:
-		r -= _route_weight(l)
+		r -= _route_weight(l, heavy)
 		if r <= 0.0:
 			return l
 	return succ[succ.size() - 1]
 
 
-func _route_weight(lane: Lane) -> float:
+func _route_weight(lane: Lane, heavy := false) -> float:
+	var zone := 1.0
+	if heavy:
+		var exit := lane.successors[0] if lane.is_connector and not lane.successors.is_empty() else lane
+		zone = maxf(exit.bus_spawn_scale, 0.02)
 	if not lane.is_connector:
-		return 1.0
+		return zone
 	match lane.movement:
 		IntersectionController.Movement.LEFT:
-			return config.turn_weight_left
+			return config.turn_weight_left * zone
 		IntersectionController.Movement.RIGHT:
-			return config.turn_weight_right
-	return config.turn_weight_straight
+			return config.turn_weight_right * zone
+	return config.turn_weight_straight * zone
 
 
 # --- Spawning ---
@@ -299,7 +305,7 @@ func _activate(cls: TrafficVehicleClass, lane: Lane, s: float) -> void:
 	var target := rng.randf_range(cls.min_speed_kmh, cls.max_speed_kmh) / 3.6
 	var start_speed := minf(target, lane.advisory_at(s)) * rng.randf_range(0.7, 1.0)
 	agent.set_visual_variant(rng.randi() % cls.body_colors.size())
-	agent.activate(lane, s, start_speed, target, choose_next_lane(lane))
+	agent.activate(lane, s, start_speed, target, choose_next_lane(lane, cls.is_heavy))
 	active_agents.append(agent)
 	stats_spawned += 1
 	agent_spawned.emit(agent)
