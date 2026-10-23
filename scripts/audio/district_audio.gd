@@ -15,6 +15,7 @@ extends Node3D
 ## pools, cooldowns, range limits and ducking the Ambience bus on crashes.
 
 const POOL := 4
+const BEDS := ["amb_city", "amb_crowd", "amb_market"]
 
 var player: TukController
 var traffic: TrafficManager
@@ -64,7 +65,7 @@ func setup(p_player: TukController, p_traffic: TrafficManager, p_network: RoadNe
 	for i in POOL:
 		_pool.append(AudioLibrary.player_3d(self, "", &"Traffic", 70.0))
 	_rumble = AudioLibrary.player_3d(self, "bus_rumble", &"Traffic", 45.0)
-	for bed: String in ["amb_city", "amb_crowd", "amb_market"]:
+	for bed: String in BEDS:
 		var b := AudioLibrary.player_2d(self, bed, &"Ambience", -60.0)
 		b.play(rng.randf() * 5.0)
 		_beds[bed] = b
@@ -143,6 +144,12 @@ func _on_traffic_horn(at: Vector3, pattern: int) -> void:
 
 
 func _process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(delta)
+	PerfSections.end(PerfSections.AUDIO, ps)
+
+
+func _process_body(delta: float) -> void:
 	if player == null:
 		return
 	_engine(delta)
@@ -213,10 +220,9 @@ func _ambience(delta: float) -> void:
 		_rumble.global_position = _rumble_target.global_position
 	_duck = maxf(_duck - delta, 0.0)
 	var mix: Array = ZONE_MIX.get(_zone, [0.8, 0.5, 0.2])
-	var names := ["amb_city", "amb_crowd", "amb_market"]
 	for i in 3:
 		var target_db := linear_to_db(maxf(float(mix[i]), 0.001)) - 4.0 - _duck * 5.0
-		var b: AudioStreamPlayer = _beds[names[i]]
+		var b: AudioStreamPlayer = _beds[BEDS[i]]
 		b.volume_db = move_toward(b.volume_db, target_db, delta * 12.0)
 
 

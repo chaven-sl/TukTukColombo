@@ -201,11 +201,18 @@ func acquire_driver(door: Vector3, facing: Vector3) -> HumanAgent:
 # --- Main loop ---
 
 func _physics_process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_physics_process_body(delta)
+	PerfSections.end(PerfSections.HUMAN_LOGIC, ps)
+
+
+func _physics_process_body(delta: float) -> void:
 	if network == null:
 		return
 	var t0 := Time.get_ticks_usec()
 	_cache_player()
 	_camera_pos = camera.global_position if camera != null else player_position
+	var pres_us := 0.0
 	var i := active.size() - 1
 	while i >= 0:
 		var agent := active[i]
@@ -213,7 +220,10 @@ func _physics_process(delta: float) -> void:
 			_tick_evade(agent, delta)
 		elif agent.behaviour != null:
 			agent.behaviour.tick(agent, delta, self)
+		var pv := PerfSections.begin()
 		agent.update_visual(delta, _camera_pos)
+		if PerfSections.enabled:
+			pres_us += float(Time.get_ticks_usec() - pv)
 		i -= 1
 	_check_player_safety()
 	_spawn_timer -= delta
@@ -221,6 +231,7 @@ func _physics_process(delta: float) -> void:
 		_spawn_timer = config.spawn_interval
 		_maintain_population()
 	last_tick_usec = Time.get_ticks_usec() - t0
+	PerfSections.add(PerfSections.HUMAN_PRESENTATION, pres_us)
 
 
 func _cache_player() -> void:

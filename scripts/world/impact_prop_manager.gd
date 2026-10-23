@@ -149,6 +149,12 @@ func active_debris() -> int:
 
 
 func _physics_process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_physics_process_body(delta)
+	PerfSections.end(PerfSections.PROPS, ps)
+
+
+func _physics_process_body(delta: float) -> void:
 	if player == null:
 		return
 	var xf := player.global_transform

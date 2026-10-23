@@ -10,6 +10,7 @@ const B := CharacterBuilder.Bone
 
 var variant := 0
 var mode: Mode = Mode.IDLE
+const ALL_BONES: Array[int] = [B.HIPS, B.CHEST, B.HEAD, B.L_ARM, B.L_FOREARM, B.R_ARM, B.R_FOREARM, B.L_LEG, B.L_SHIN, B.R_LEG, B.R_SHIN]
 ## Walk cycle speed in m/s (drives stride frequency).
 var move_speed := 1.3
 var skeleton: Skeleton3D
@@ -83,7 +84,7 @@ func animate(delta: float, camera_pos: Vector3) -> void:
 	var hips_y := CharacterBuilder.BONE_REST[B.HIPS].y
 	skeleton.set_bone_pose_position(B.HIPS, Vector3(0, hips_y, 0))
 	# Neutral.
-	for b in [B.HIPS, B.CHEST, B.HEAD, B.L_ARM, B.L_FOREARM, B.R_ARM, B.R_FOREARM, B.L_LEG, B.L_SHIN, B.R_LEG, B.R_SHIN]:
+	for b in ALL_BONES:
 		skeleton.set_bone_pose_rotation(b, Quaternion.IDENTITY)
 	match mode:
 		Mode.IDLE, Mode.WAIT:

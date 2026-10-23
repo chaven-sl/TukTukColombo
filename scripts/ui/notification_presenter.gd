@@ -150,6 +150,12 @@ func visible_panels() -> Array[PanelContainer]:
 
 
 func _process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(delta)
+	PerfSections.end(PerfSections.NOTIFICATIONS, ps)
+
+
+func _process_body(delta: float) -> void:
 	for i in SLOTS:
 		if _priority[i] < 0:
 			continue

@@ -104,11 +104,23 @@ func _on_budget_changed(ceiling: int, actual: int) -> void:
 
 
 func _process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(delta)
+	PerfSections.end(PerfSections.TRAFFIC, ps)
+
+
+func _process_body(delta: float) -> void:
 	if budget != null:
 		budget.push_frame(delta)
 
 
 func _physics_process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_physics_process_body(delta)
+	PerfSections.end(PerfSections.TRAFFIC, ps)
+
+
+func _physics_process_body(delta: float) -> void:
 	if network == null:
 		return
 	_cache_player()

@@ -59,6 +59,12 @@ func _show(text: String, at: Vector3, color: Color, seconds: float, size: int) -
 
 
 func _process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(delta)
+	PerfSections.end(PerfSections.NOTIFICATIONS, ps)
+
+
+func _process_body(delta: float) -> void:
 	for i in POOL:
 		if _timers[i] <= 0.0:
 			continue

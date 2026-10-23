@@ -35,6 +35,7 @@ extends Node3D
 ## Presentation style: greybox test track, or the Fort–Pettah art pass
 ## (district lighting + DistrictArt dresser + audio).
 @export_enum("Greybox", "FortPettah") var art_style := 0
+var _greybox_environment: Environment = null
 
 ## LOW, MEDIUM, HIGH (indexed by GraphicsProfile.Tier).
 @export var graphics_profiles: Array[Resource] = []
@@ -48,7 +49,22 @@ var touch_mode := false
 var graphics_tier: GraphicsProfile.Tier = GraphicsProfile.Tier.HIGH
 
 
+## v0.03B1 startup analysis: [Startup] phase marks, ms since engine start.
+var _startup_marks := PackedStringArray()
+
+
+func _mark(label: String) -> void:
+	_startup_marks.append("%s=%d" % [label, Time.get_ticks_msec()])
+
+
+func _enter_tree() -> void:
+	if Engine.has_meta("startup_boot_ms"):
+		_startup_marks.append("boot=%d" % int(Engine.get_meta("startup_boot_ms")))
+	_mark("scene_loaded")
+
+
 func _ready() -> void:
+	_mark("ready")
 	if district_scene != null:
 		_swap_district()
 	if art_style == 1:
@@ -58,6 +74,7 @@ func _ready() -> void:
 	if perf_seconds > 0.0:
 		_use_fixed_seeds()
 	network.build()
+	_mark("road_built")
 	player.reset_pose_provider = network.find_reset_transform  # replaced by WorldRecoveryManager below
 	var spawn := network.get_node_or_null("PlayerSpawn") as Marker3D
 	if spawn != null:
@@ -68,12 +85,16 @@ func _ready() -> void:
 	player.impacted.connect(camera.on_vehicle_impact)
 	player.was_reset.connect(camera.snap_to_target)
 	traffic.setup(network, player, camera)
+	_mark("traffic_pool")
 	near_miss.setup(player, traffic)
 	pedestrians.build(network)
+	_mark("pedestrian_net")
 	var art := get_node_or_null("DistrictArt")
 	if art != null and art.has_method("dress"):
 		art.call("dress", network, pedestrians)
+		_mark("district_art")
 	humans.setup(pedestrians, traffic, player, camera, human_seed)
+	_mark("humans_pool")
 	offers.setup(pedestrians, network, humans, offer_seed)
 	rides.setup(player, offers, humans, network, scoring)
 	hud.setup(player, scoring)
@@ -91,10 +112,23 @@ func _ready() -> void:
 	var audio := get_node_or_null("DistrictAudio") as DistrictAudio
 	if audio != null:
 		audio.setup(player, traffic, network)
+		_mark("audio")
 	_setup_platform()
+	_log_runtime_settings()
 	GameState.reset_session()
+	_mark("setup_done")
 	if perf_seconds > 0.0:
 		start_perf_test(perf_seconds)
+	_log_startup.call_deferred()
+
+
+func _log_startup() -> void:
+	await RenderingServer.frame_post_draw
+	_mark("first_frame")
+	for i in 30:
+		await RenderingServer.frame_post_draw
+	_mark("frame_30")
+	print("[Startup] %s" % " ".join(_startup_marks))
 
 
 func _swap_district() -> void:
@@ -120,6 +154,7 @@ func _apply_ui_theme() -> void:
 
 ## Hot tropical late morning (DistrictLighting) instead of the greybox sky.
 func _apply_district_lighting() -> void:
+	_greybox_environment = ($WorldEnvironment as WorldEnvironment).environment
 	($WorldEnvironment as WorldEnvironment).environment = DistrictLighting.make_environment()
 	var sun := $Sun as DirectionalLight3D
 	var ref := DistrictLighting.make_sun()
@@ -145,6 +180,29 @@ func _setup_platform() -> void:
 	perf_test.network = network
 	perf_test.traffic = traffic
 	pause.perf_test_requested.connect(func() -> void: start_perf_test(DevicePerfTest.DEFAULT_SECONDS))
+
+
+## v0.03B1: one line describing what the device is ACTUALLY running.
+func _log_runtime_settings() -> void:
+	var profile := graphics_profiles[graphics_tier] as GraphicsProfile
+	var sun := $Sun as DirectionalLight3D
+	var env := ($WorldEnvironment as WorldEnvironment).environment
+	var vp := get_viewport()
+	var win := DisplayServer.window_get_size()
+	var refresh := DisplayServer.screen_get_refresh_rate()
+	var vsync_names := ["DISABLED", "ENABLED", "ADAPTIVE", "MAILBOX"]
+	var vsync := DisplayServer.window_get_vsync_mode()
+	var cap := Engine.max_fps if Engine.max_fps > 0 else int(refresh)
+	print("[GraphicsRuntime] tier=%s profile_shadow_distance=%.0f max_fps=%d render_scale=%.2f shadow_distance=%.0f sun_shadows=%s fog=%s sky=%s ambient=%s reflections=%s viewport=%dx%d render_3d=%dx%d window=%dx%d screen_refresh_hz=%.1f vsync=%s renderer=%s physics_ticks=%d process_mode=%d effective_cap=%d" % [
+		GraphicsProfile.Tier.keys()[graphics_tier], profile.shadow_max_distance, Engine.max_fps, vp.scaling_3d_scale,
+		sun.directional_shadow_max_distance, sun.shadow_enabled, env.fog_enabled,
+		env.background_mode == Environment.BG_SKY, ["BG", "DISABLED", "COLOR", "SKY"][env.ambient_light_source],
+		["BG", "DISABLED", "SKY"][env.reflected_light_source],
+		vp.get_visible_rect().size.x, vp.get_visible_rect().size.y,
+		int(vp.size.x * vp.scaling_3d_scale), int(vp.size.y * vp.scaling_3d_scale), win.x, win.y, refresh,
+		vsync_names[vsync] if vsync < vsync_names.size() else str(vsync),
+		str(ProjectSettings.get_setting("rendering/renderer/rendering_method")),
+		Engine.physics_ticks_per_second, process_mode, cap])
 
 
 ## Exactly one human input source drives the tuk: keyboard OR touch.
@@ -179,7 +237,64 @@ func start_perf_test(seconds: float) -> void:
 		keyboard.enabled = false
 	mobile_controls.set_active(false)
 	GameState.set_paused(false)
+	_apply_perf_options(DevicePerfTest.options)
+	perf_monitor.options = DevicePerfTest.options
 	perf_test.begin(seconds)
+
+
+## v0.03B1 device A/B switches (debug/perf runs only; never shipped states).
+## Each turns off ONE presentation layer while gameplay keeps running.
+func _apply_perf_options(opts: PackedStringArray) -> void:
+	var all := opts.has("all_off")
+	var audio := get_node_or_null("DistrictAudio")
+	if audio != null and (all or opts.has("audio_off")):
+		audio.process_mode = Node.PROCESS_MODE_DISABLED
+		for c in audio.get_children():
+			if c is AudioStreamPlayer:
+				(c as AudioStreamPlayer).stop()
+			elif c is AudioStreamPlayer3D:
+				(c as AudioStreamPlayer3D).stop()
+	for a in humans.all_agents:
+		if a.rig == null:
+			continue
+		if all or opts.has("humans_hidden"):
+			a.rig.visible = false
+		elif opts.has("rig_static"):
+			a.rig.animate_distance = 0.0
+	if all or opts.has("traffic_hidden"):
+		for a in traffic.agents_by_id:
+			for mi in a.body_meshes:
+				mi.visible = false
+	var hero := player.get_node_or_null("Visual/HeroArt") as Node3D
+	if hero != null and (all or opts.has("hero_hidden")):
+		hero.visible = false
+		hero.process_mode = Node.PROCESS_MODE_DISABLED
+	if all or opts.has("ribbon_hidden"):
+		guidance.set_ribbon_hidden(true)
+	var art := get_node_or_null("DistrictArt") as Node3D
+	if art != null:
+		if all or opts.has("art_hidden"):
+			art.visible = false
+		elif opts.has("signs_hidden"):
+			for c in art.get_children():
+				if c.name.begins_with("Signs_"):
+					(c as Node3D).visible = false
+	if all or opts.has("shadows_off"):
+		($Sun as DirectionalLight3D).shadow_enabled = false
+	var env := ($WorldEnvironment as WorldEnvironment).environment
+	if all or opts.has("fog_off"):
+		env.fog_enabled = false
+	for o in opts:
+		if o.begins_with("scale="):
+			get_viewport().scaling_3d_scale = float(o.get_slice("=", 1))
+		elif o == "fsr":
+			get_viewport().scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
+	if opts.has("sky_off"):
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = DistrictLighting.SKY_HORIZON
+	if all and _greybox_environment != null:
+		($WorldEnvironment as WorldEnvironment).environment = _greybox_environment
+		get_window().theme = null
 
 
 func _use_fixed_seeds() -> void:

@@ -133,6 +133,12 @@ func half_extents() -> Vector2:
 
 
 func _physics_process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_physics_process_body(delta)
+	PerfSections.end(PerfSections.PLAYER_PHYSICS, ps)
+
+
+func _physics_process_body(delta: float) -> void:
 	if _reset_requested:
 		_reset_requested = false
 		_perform_reset()

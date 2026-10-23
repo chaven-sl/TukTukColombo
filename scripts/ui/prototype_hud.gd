@@ -144,6 +144,12 @@ func _apply_layout() -> void:
 
 
 func _process(_delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(_delta)
+	PerfSections.end(PerfSections.HUD, ps)
+
+
+func _process_body(_delta: float) -> void:
 	if player == null:
 		return
 	_speed_label.text = "%d" % roundi(player.speed_kmh)

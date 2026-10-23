@@ -6,4 +6,6 @@ const FIRST_SCENE := "res://scenes/districts/fort_pettah/fort_pettah_slice.tscn"
 
 
 func _ready() -> void:
+	# v0.03B1 startup analysis: engine + autoloads ready (ms since engine start).
+	Engine.set_meta("startup_boot_ms", Time.get_ticks_msec())
 	get_tree().change_scene_to_file.call_deferred(FIRST_SCENE)

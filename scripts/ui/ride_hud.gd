@@ -35,6 +35,7 @@ var _dest_beacon: MeshInstance3D
 var _gps_panel: PanelContainer
 var _gps_label: Label
 var _pickup_tag: Label3D
+var _text_timer := 0.0
 
 
 func setup(p_rides: RideManager, p_offers: PassengerOfferManager, p_world: Node3D, p_guidance: RouteGuidance = null) -> void:
@@ -197,11 +198,22 @@ static func km(meters: float) -> String:
 
 
 func _process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(delta)
+	PerfSections.end(PerfSections.HUD, ps)
+
+
+func _process_body(delta: float) -> void:
 	if rides == null:
 		return
 	_update_beacons()
-	_update_offer_panel()
-	_update_gps()
+	# Text cards refresh at 10 Hz (v0.03B1): rebuilding strings every frame
+	# was measurable HUD cost for content that changes at most every 100 ms.
+	_text_timer -= delta
+	if _text_timer <= 0.0:
+		_text_timer = 0.1
+		_update_offer_panel()
+		_update_gps()
 	_update_ride_panel(delta)
 	if _result_timer > 0.0:
 		_result_timer -= delta

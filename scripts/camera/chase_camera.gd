@@ -54,6 +54,12 @@ func on_vehicle_impact(event: CollisionEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(delta)
+	PerfSections.end(PerfSections.CAMERA, ps)
+
+
+func _process_body(delta: float) -> void:
 	if target == null:
 		return
 	var xf := target.get_global_transform_interpolated()

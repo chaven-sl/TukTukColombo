@@ -39,6 +39,8 @@ var off_route_events := 0
 var suppressed_recalcs := 0
 
 var _ribbon: RouteRibbon
+## Debug/perf A/B only: keep the ribbon hidden.
+var _ribbon_hidden := false
 var _update_timer := 0.0
 var _off_timer := 0.0
 var _wrong_timer := 0.0
@@ -131,6 +133,8 @@ func recalculate(force: bool = false) -> bool:
 		progress = pr.x
 		lateral = pr.y
 		_ribbon.show_plan(plan, config)
+		if _ribbon_hidden:
+			_ribbon.visible = false
 		_ribbon.set_progress(progress)
 	_update_instruction()
 	route_changed.emit(plan)
@@ -138,6 +142,12 @@ func recalculate(force: bool = false) -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_physics_process_body(delta)
+	PerfSections.end(PerfSections.GPS, ps)
+
+
+func _physics_process_body(delta: float) -> void:
 	_since_recalc += delta
 	if plan == null or plan.is_empty() or player == null:
 		if phase == Phase.BOARDING:
@@ -203,3 +213,9 @@ func instruction_text() -> String:
 	if instruction_kind == RoutePlan.Kind.STOP_TO_PICK_UP or instruction_kind == RoutePlan.Kind.STOP_HERE:
 		return word
 	return "%s — %d m" % [word, RoutePlan.display_distance(instruction_distance)]
+
+
+func set_ribbon_hidden(hidden: bool) -> void:
+	_ribbon_hidden = hidden
+	if hidden:
+		_ribbon.visible = false

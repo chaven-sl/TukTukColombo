@@ -154,6 +154,12 @@ func _set_phase(p: Phase) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_physics_process_body(delta)
+	PerfSections.end(PerfSections.INCIDENTS, ps)
+
+
+func _physics_process_body(delta: float) -> void:
 	if phase == Phase.NONE:
 		return
 	elapsed += delta

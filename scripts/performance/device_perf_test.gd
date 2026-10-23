@@ -32,15 +32,25 @@ var _warmup := 0.0
 var _autopilot: AutopilotDriver
 
 
+## v0.03B1 A/B switches for the run (flag file: "<seconds> opt1,opt2").
+static var options := PackedStringArray()
+
+
 static func requested_seconds() -> float:
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--perf-test":
 			return DEFAULT_SECONDS
+		if arg.begins_with("--perf-options="):
+			options = arg.get_slice("=", 1).split(",", false)
+	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--perf-test="):
 			return float(arg.get_slice("=", 1))
 	if FileAccess.file_exists(FLAG):
-		var text := FileAccess.get_file_as_string(FLAG).strip_edges()
+		var parts := FileAccess.get_file_as_string(FLAG).strip_edges().split(" ", false)
 		DirAccess.remove_absolute(FLAG)
+		var text := parts[0] if parts.size() > 0 else ""
+		if parts.size() > 1:
+			options = parts[1].split(",", false)
 		return float(text) if text.is_valid_float() and float(text) > 0.0 else DEFAULT_SECONDS
 	return 0.0
 

@@ -222,6 +222,12 @@ func _build_driver() -> void:
 
 
 func _process(delta: float) -> void:
+	var ps := PerfSections.begin()
+	_process_body(delta)
+	PerfSections.end(PerfSections.HERO_VISUAL, ps)
+
+
+func _process_body(delta: float) -> void:
 	if _front_steer != null and handlebar != null:
 		handlebar.rotation.y = _front_steer.rotation.y
 	if tuk != null:
