@@ -55,6 +55,7 @@ func build_end_cap(materials: Dictionary) -> void:
 	var height := 5.5
 	var body := StaticBody3D.new()
 	body.name = "TunnelCollision"
+	WorldSurface.tag(body, WorldSurface.Type.WALL)
 	body.collision_layer = 1
 	body.collision_mask = 0
 	cap.add_child(body)

@@ -8,6 +8,8 @@ extends RefCounted
 const ROAD_SAMPLE_SPACING := 4.0
 
 var _road_samples := PackedVector3Array()   # x, z = centre; y = half width
+## Segment that produced each road sample (-1 for spots / junctions / tunnels).
+var _sample_owner: Array[RoadSegment] = []
 var _rng := RandomNumberGenerator.new()
 
 
@@ -30,7 +32,15 @@ func populate(network: RoadNetwork, seed_value: int) -> void:
 	body.name = "SceneryCollision"
 	body.collision_layer = 1
 	body.collision_mask = 0
+	WorldSurface.tag(body, WorldSurface.Type.BUILDING)
 	root.add_child(body)
+	# Trees and lamp posts are solid street furniture, not buildings.
+	var furniture := StaticBody3D.new()
+	furniture.name = "StreetFurnitureCollision"
+	furniture.collision_layer = 1
+	furniture.collision_mask = 0
+	WorldSurface.tag(furniture, WorldSurface.Type.PROP)
+	root.add_child(furniture)
 
 	var unit_box := BoxMesh.new()
 	unit_box.size = Vector3.ONE
@@ -58,7 +68,7 @@ func populate(network: RoadNetwork, seed_value: int) -> void:
 		canopy_xfs.append(xf.translated(Vector3.UP * 3.6))
 		trunk_colors.append(Color(0.35, 0.25, 0.17))
 		canopy_colors.append(Color(0.18, 0.38 + _rng.randf() * 0.12, 0.16))
-		_collider(body, Vector3(0.5, 2.6, 0.5), xf.origin + Vector3.UP * 1.3, Basis.IDENTITY)
+		_collider(furniture, Vector3(0.5, 2.6, 0.5), xf.origin + Vector3.UP * 1.3, Basis.IDENTITY)
 	_multimesh(root, "TreeTrunks", trunk, trunk_xfs, trunk_colors, network.materials["scenery"])
 	_multimesh(root, "TreeCanopies", canopy, canopy_xfs, canopy_colors, network.materials["scenery"])
 
@@ -69,7 +79,7 @@ func populate(network: RoadNetwork, seed_value: int) -> void:
 	for xf in lamps:
 		lamp_xfs.append(xf.translated(Vector3.UP * 3.0))
 		lamp_colors.append(Color(0.45, 0.45, 0.47))
-		_collider(body, Vector3(0.2, 6.0, 0.2), xf.origin + Vector3.UP * 3.0, Basis.IDENTITY)
+		_collider(furniture, Vector3(0.2, 6.0, 0.2), xf.origin + Vector3.UP * 3.0, Basis.IDENTITY)
 	_multimesh(root, "LampPosts", pole, lamp_xfs, lamp_colors, network.materials["scenery"])
 
 
@@ -81,18 +91,22 @@ func _collect_road_samples(network: RoadNetwork) -> void:
 			var p := seg.global_transform * seg.local_center(s)
 			var extent := maxf(seg.outer_extent(s, -1.0), seg.outer_extent(s, 1.0))
 			_road_samples.append(Vector3(p.x, extent + 0.5, p.z))
+			_sample_owner.append(seg)
 	# Keep pedestrian spots (bus stop, shop fronts, pickups) clear of dressing.
 	for sp in _spot_positions(network):
 		_road_samples.append(Vector3(sp.x, 7.0, sp.z))
+		_sample_owner.append(null)
 	for ix in network.intersections:
 		var p := ix.global_position
 		_road_samples.append(Vector3(p.x, ix.size * 0.75, p.z))
+		_sample_owner.append(null)
 	for chain in network.chains:
 		if chain.end_cap_tunnel:
 			var e := chain.global_transform * chain.end_local
 			for k in 4:
 				var p := e.origin + e.basis.z * (k * chain.tunnel_depth / 3.0)
 				_road_samples.append(Vector3(p.x, 9.0, p.z))
+				_sample_owner.append(null)
 
 
 func _spot_positions(node: Node) -> PackedVector3Array:
@@ -102,6 +116,20 @@ func _spot_positions(node: Node) -> PackedVector3Array:
 			result.append((child as Node3D).global_position)
 		result.append_array(_spot_positions(child))
 	return result
+
+
+## Like _clear_of_roads but the own segment only needs `own_radius` (the
+## shopfront's half depth): used to build shops right behind a pavement.
+func _clear_except(p: Vector3, radius: float, own: RoadSegment, own_radius: float) -> bool:
+	for i in _road_samples.size():
+		var sample := _road_samples[i]
+		var r := own_radius if _sample_owner[i] == own else radius
+		var dx := p.x - sample.x
+		var dz := p.z - sample.z
+		var limit := sample.y + r
+		if dx * dx + dz * dz < limit * limit:
+			return false
+	return true
 
 
 func _clear_of_roads(p: Vector3, radius: float) -> bool:
@@ -141,9 +169,15 @@ func _place_along(seg: RoadSegment, side: float, buildings: Array[Transform3D], 
 			var width := _rng.randf_range(8.0, 18.0)
 			var depth := _rng.randf_range(8.0, 16.0)
 			var height := _rng.randf_range(4.0, 14.0)
-			var off := seg.outer_extent(s, side) + _rng.randf_range(5.0, 10.0) + depth * 0.5
+			# v0.03A2: behind a pavement, shopfronts line the street with a
+			# short forecourt; elsewhere blocks stand back from the road.
+			var shopfront := seg.has_sidewalk(side)
+			var gap := _rng.randf_range(1.2, 3.5) if shopfront else _rng.randf_range(5.0, 10.0)
+			var off := seg.outer_extent(s, side) + gap + depth * 0.5
 			var p := xf * (seg.local_center(s) + seg.local_right(s) * side * off)
-			if _clear_of_roads(p, maxf(width, depth) * 0.6):
+			var clear := _clear_except(p, maxf(width, depth) * 0.6, seg, depth * 0.5 - 0.2) if shopfront \
+					else _clear_of_roads(p, maxf(width, depth) * 0.6)
+			if clear:
 				var b := basis.scaled(Vector3(width, height, depth))
 				buildings.append(Transform3D(b, Vector3(p.x, height * 0.5, p.z)))
 				var tone := _rng.randf_range(0.55, 0.8)

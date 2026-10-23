@@ -27,6 +27,11 @@ var segment_lanes: Dictionary = {}
 var debug_mesh_instance: MeshInstance3D
 var materials: Dictionary = {}
 var is_built := false
+## v0.03A2: playable district footprint (x/z) — roads + margin; the district
+## boundary ring sits just outside it, WorldRecoveryManager treats leaving it
+## as a failsafe case.
+var district_rect := Rect2()
+@export var district_margin := 38.0
 
 
 func build() -> void:
@@ -63,6 +68,8 @@ func build() -> void:
 	_build_debug_mesh()
 	if generate_scenery:
 		ScenerySpawner.new().populate(self, scenery_seed)
+	district_rect = _compute_district_rect()
+	DistrictBoundary.new().build(self, district_rect, scenery_seed + 1)
 	is_built = true
 	print("[RoadNetwork] %d segments, %d lanes (%d connectors), %d sources, %d sinks, %d spawn slots" % [
 		segments.size(), lanes.size(), lanes.size() - _ordinary_lane_count(), source_lanes.size(),
@@ -128,6 +135,7 @@ func _build_ground() -> void:
 	body.collision_layer = 1
 	body.collision_mask = 0
 	body.set_meta(&"is_ground", true)
+	WorldSurface.tag(body, WorldSurface.Type.FORECOURT)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(ground_size, 2.0, ground_size)
@@ -144,6 +152,31 @@ func _build_ground() -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	body.add_child(mi)
 	add_child(body)
+
+
+func _compute_district_rect() -> Rect2:
+	var r := Rect2()
+	var first := true
+	for lane in lanes:
+		for p in lane.points:
+			var p2 := Vector2(p.x, p.z)
+			if first:
+				r = Rect2(p2, Vector2.ZERO)
+				first = false
+			else:
+				r = r.expand(p2)
+	return r.grow(district_margin)
+
+
+## Horizontal distance (m) from `pos` to the nearest ordinary lane centre line.
+func distance_to_road(pos: Vector3) -> float:
+	var best := INF
+	for lane in lanes:
+		if lane.is_connector:
+			continue
+		var p := lane.sample_position(lane.closest_s(pos))
+		best = minf(best, Vector2(p.x - pos.x, p.z - pos.z).length())
+	return best
 
 
 func _build_spawn_slots() -> void:

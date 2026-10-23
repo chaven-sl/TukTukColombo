@@ -242,6 +242,8 @@ func build_geometry(materials: Dictionary) -> void:
 		add_child(mi)
 		var body := StaticBody3D.new()
 		body.name = "EdgeCollision"
+		# Kerbs/pavements are climbable (never damaging); jersey barriers are walls.
+		WorldSurface.tag(body, WorldSurface.Type.WALL if edge_left == Edge.BARRIER and edge_right == Edge.BARRIER else WorldSurface.Type.KERB)
 		body.collision_layer = 1
 		body.collision_mask = 0
 		var shape := CollisionShape3D.new()

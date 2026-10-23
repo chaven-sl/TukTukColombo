@@ -252,6 +252,19 @@ func _build_dressing(spot: PedestrianSpot) -> void:
 	root.position = anchor + out * 1.0
 	root.basis = MathUtil.basis_from_forward(out)
 	add_child(root)
+	# v0.03A2: dressing is physical (shelter posts are street furniture,
+	# shop blocks are buildings) — no more driving through them.
+	var body := StaticBody3D.new()
+	body.name = "DressingCollision"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	WorldSurface.tag(body, WorldSurface.Type.PROP if spot.dressing == 1 else WorldSurface.Type.BUILDING)
+	root.add_child(body)
+	if spot.dressing == 1:
+		_solid(body, Vector3(0.2, 2.5, 0.2), Vector3(-1.8, 1.25, 0.6))
+		_solid(body, Vector3(0.2, 2.5, 0.2), Vector3(1.8, 1.25, 0.6))
+	elif spot.dressing == 2:
+		_solid(body, Vector3(6.0, 3.2, 3.0), Vector3(0, 1.6, 2.8))
 	if spot.dressing == 1:
 		# Bus shelter: roof on two posts.
 		_box(root, Vector3(4.0, 0.12, 1.6), Vector3(0, 2.5, 0), _materials["dark"])
@@ -262,6 +275,15 @@ func _build_dressing(spot: PedestrianSpot) -> void:
 		# Shop front: block with a coloured awning.
 		_box(root, Vector3(6.0, 3.2, 3.0), Vector3(0, 1.6, 2.8), _materials["concrete"])
 		_box(root, Vector3(6.2, 0.12, 1.4), Vector3(0, 2.6, 0.9), _materials["lamp_amber_on"])
+
+
+func _solid(body: StaticBody3D, size: Vector3, pos: Vector3) -> void:
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = pos
+	body.add_child(shape)
 
 
 func _box(parent: Node3D, size: Vector3, pos: Vector3, material: Material) -> void:
